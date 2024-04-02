@@ -64,7 +64,26 @@ void Game::addSpring()
 	addEntities();
 	addEntities();
 
-	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 1], 10.f, 300.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 1], 10.f, 0.2f, 300.f));
+}
+
+void Game::addSponge()
+{
+	Entities.emplace_back(new Entity(sf::Vector2f(50.f, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Entity(sf::Vector2f(50.f, 120.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 120.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Entity(sf::Vector2f(85.f, 85.f), 1.f, 10.f, sf::Color::Green));
+
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 5], 225.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 4], 225.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 3], 225.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 2], 225.f, 1.f, 49.5f));
+
+	Springs.emplace_back(Spring(Entities[Entities.size() - 5], Entities[Entities.size() - 4], 225.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 4], Entities[Entities.size() - 2], 225.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 3], 225.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 3], Entities[Entities.size() - 5], 225.f, 1.f, 70.f));
 }
 
 void Game::pollEvents()
@@ -82,6 +101,8 @@ void Game::pollEvents()
 			} else if (e.key.code == sf::Keyboard::R) {
 				addSpring();
 				//std::cout << entitiesSpawned << std::endl;
+			} else if (e.key.code == sf::Keyboard::T) {
+				addSponge();
 			}
 			break;
 		}
@@ -293,7 +314,7 @@ Entity::Entity()
 	body.setRadius(size);
 	color = sf::Color::White;
 	body.setFillColor(color);
-	resCoeff = 1.f;
+	resCoeff = 0.5f;
 
 	//Add a small random horizontal velocity
 	currentVelocity.x = static_cast<float>(rand() % 10);
@@ -308,7 +329,7 @@ Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	body.setRadius(size);
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 1.f;
+	resCoeff = 0.5f;
 
 	centrePosition = currentPosition + sf::Vector2f(size, size);
 
@@ -380,12 +401,13 @@ void rectBarrier::renderBarrier(sf::RenderWindow& target)
 	target.draw(body);
 }
 
-Spring::Spring(Entity* inputEntity1, Entity* inputEntity2, float inputSpringConstant, float inputRestLength)
+Spring::Spring(Entity* inputEntity1, Entity* inputEntity2, float inputSpringConstant, float inputDampingConstant, float inputRestLength)
 {
 	entity1 = inputEntity1;
 	entity2 = inputEntity2;
 	springWidth = 10.f;
 	springConstant = inputSpringConstant;
+	dampingConstant = inputDampingConstant;
 	restLength = inputRestLength;
 
 	springBody.setFillColor(sf::Color::White);
@@ -426,8 +448,8 @@ void Spring::applyForces()
 	const sf::Vector2f e2RestPos = centreOfMass + (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e2RestDistance);
 
 	//Apply the restoring force to the entities
-	entity1->force += -springConstant * (entity1->centrePosition - e1RestPos);
-	entity2->force += -springConstant * (entity2->centrePosition - e2RestPos);
+	entity1->force += -springConstant * (entity1->centrePosition - e1RestPos) - dampingConstant * (entity1->currentVelocity - entity2->currentVelocity);
+	entity2->force += -springConstant * (entity2->centrePosition - e2RestPos) - dampingConstant * (entity2->currentVelocity - entity1->currentVelocity);
 }
 
 void Spring::render(sf::RenderWindow& target)

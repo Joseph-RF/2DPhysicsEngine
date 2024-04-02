@@ -67,12 +67,13 @@ public:
 	float springWidth;
 	
 	float springConstant;
+	float dampingConstant;
 	float restLength;
 	sf::Vector2f centreOfMass;
 	float e1RestDistance;
 	float e2RestDistance;
 
-	Spring(Entity* inputEntity1, Entity* inputEntity2, float inputSpringConstant, float inputRestLength);
+	Spring(Entity* inputEntity1, Entity* inputEntity2, float inputSpringConstant, float inputDampingConstant, float inputRestLength);
 	~Spring();
 
 	void update();
@@ -111,6 +112,7 @@ public:
 
 	void addEntities();
 	void addSpring();
+	void addSponge();
 
 	void pollEvents();
 	void solver(Entity& E, float dt);
