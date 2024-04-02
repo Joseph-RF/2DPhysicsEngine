@@ -4,11 +4,11 @@ int main()
 {
 	srand(time(NULL));
 
-	Game game;
+	Engine engine;
 
-	while (game.isWindowOpen()) {
-		game.update();
+	while (engine.isWindowOpen()) {
+		engine.update();
 
-		game.render();
+		engine.render();
 	}
 }

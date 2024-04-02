@@ -5,14 +5,14 @@ int windowHeight = 860;
 float f_windowWidth = 1200.f;
 float f_windowHeight = 860.f;
 
-Game::Game()
+Engine::Engine()
 {
 	initVariables();
 	initWindow();
 	initScene();
 }
 
-Game::~Game()
+Engine::~Engine()
 {
 	for (size_t i = 0; i < Entities.size(); i++) {
 		delete Entities[i];
@@ -21,7 +21,7 @@ Game::~Game()
 	delete window;
 }
 
-void Game::initVariables()
+void Engine::initVariables()
 {
 	window = nullptr;
 	timeStep = (1.f / 30.f);
@@ -30,7 +30,7 @@ void Game::initVariables()
 	entitiesSpawned = 0;
 }
 
-void Game::initScene()
+void Engine::initScene()
 {
 	//Rectangular barrier near the bottom of the screen to act as a base
 	//rectBarriers.push_back(new rectBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.9f)));
@@ -46,20 +46,20 @@ void Game::initScene()
 	leftBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, 0));
 }
 
-void Game::initWindow()
+void Engine::initWindow()
 {
 	window = new sf::RenderWindow(sf::VideoMode(windowWidth, windowHeight), "Physics Engine");
 	window->setFramerateLimit(60);
 }
 
-void Game::addEntities()
+void Engine::addEntities()
 {
 	//Entities.emplace_back(Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color(rand() % 255, rand() % 255, rand() % 255, 255)));
 	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
-void Game::addSpring()
+void Engine::addSpring()
 {
 	addEntities();
 	addEntities();
@@ -67,7 +67,7 @@ void Game::addSpring()
 	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 1], 10.f, 0.2f, 300.f));
 }
 
-void Game::addSponge()
+void Engine::addSponge()
 {
 	Entities.emplace_back(new Entity(sf::Vector2f(50.f, 50.f), 1.f, 10.f, sf::Color::Green));
 	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 50.f), 1.f, 10.f, sf::Color::Green));
@@ -86,7 +86,7 @@ void Game::addSponge()
 	Springs.emplace_back(Spring(Entities[Entities.size() - 3], Entities[Entities.size() - 5], 225.f, 1.f, 70.f));
 }
 
-void Game::pollEvents()
+void Engine::pollEvents()
 {
 	while (window->pollEvent(e)) {
 		switch (e.type) {
@@ -109,7 +109,7 @@ void Game::pollEvents()
 	}
 }
 
-void Game::solver(Entity& E, float dt)
+void Engine::solver(Entity& E, float dt)
 {
 	timeElapsed += timeStep;
 	//std::cout << "Called the solver" << std::endl;
@@ -130,14 +130,14 @@ void Game::solver(Entity& E, float dt)
 	E.force = { 0.f, 0.f };
 }
 
-inline void Game::applyGravity(Entity& E)
+inline void Engine::applyGravity(Entity& E)
 {
 	//Different forces will be added here
 	E.force += {0.0f, (200.f * E.mass)}; //Gravity
 }
 
 /*
-void Game::detectEntityBarrierCollision()
+void Engine::detectEntityBarrierCollision()
 {
 	size_t entityNumber = Entities.size();
 	size_t barrierNumber = rectBarriers.size();
@@ -162,7 +162,7 @@ void Game::detectEntityBarrierCollision()
 }
 */
 
-void Game::detectEntityBarrierCollision()
+void Engine::detectEntityBarrierCollision()
 {
 	size_t entityNumber = Entities.size();
 	for (size_t i = 0; i < entityNumber; i++) {
@@ -196,7 +196,7 @@ void Game::detectEntityBarrierCollision()
 	}
 }
 
-void Game::detectEntityEntityCollision()
+void Engine::detectEntityEntityCollision()
 {
 	for (Entity* entity1 : Entities) {
 
@@ -224,7 +224,7 @@ void Game::detectEntityEntityCollision()
 	}
 }
 
-void Game::update()
+void Engine::update()
 {
 	pollEvents();
 
@@ -237,7 +237,7 @@ void Game::update()
 	}
 }
 
-void Game::updateEntities()
+void Engine::updateEntities()
 {
 	std::vector<Entity*>::iterator it;
 	for(it = Entities.begin(); it != Entities.end();) {
@@ -253,7 +253,7 @@ void Game::updateEntities()
 	}
 }
 
-void Game::updateSprings()
+void Engine::updateSprings()
 {
 	std::vector<Spring>::iterator it;
 	
@@ -277,7 +277,7 @@ void Game::updateSprings()
 	*/
 }
 
-void Game::render()
+void Engine::render()
 {
 	window->clear();
 
@@ -297,7 +297,7 @@ void Game::render()
 	window->display();
 }
 
-const bool Game::isWindowOpen() const
+const bool Engine::isWindowOpen() const
 {
 	if (window->isOpen()) {
 		return true;

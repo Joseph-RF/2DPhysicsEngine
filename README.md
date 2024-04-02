@@ -27,3 +27,7 @@ They can be added to the scene by simply pressing "s" and "r" on the keyboard re
 ![Image of a scene with a sphere and a spring in it](/README%20images/sphereWithSpringScene.png)
 
 The main interaction in this engine is the collision between entities which is governed by standard physics. The mechanics can be adjusted by changing the value for the coefficient of resitution.
+
+Latest addition is an object called "Sponge" composed of several entities interconnected by springs resulting in a soft-body-like object. For now it is just 5 entities and 8 springs. Below, an image of a "sponge"
+
+![Image of a sponge](/README%20images/spongeEmptyScene.png)

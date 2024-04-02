@@ -82,7 +82,7 @@ public:
 	void render(sf::RenderWindow& target);
 };
 
-class Game
+class Engine
 {
 private:
 
@@ -90,8 +90,8 @@ private:
 	sf::Event e;
 
 public:
-	Game();
-	~Game();
+	Engine();
+	~Engine();
 
 	float timeStep;
 	float timeElapsed;
