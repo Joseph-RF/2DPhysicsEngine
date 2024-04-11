@@ -28,6 +28,8 @@ void Engine::initVariables()
 	timeElapsed = 0.0f;
 	subSteps = 8;
 	entitiesSpawned = 0;
+
+	quad.init(0, sf::Vector2f(0.0, 0.0), sf::Vector2f(f_windowWidth, f_windowHeight));
 }
 
 void Engine::initScene()
@@ -54,7 +56,6 @@ void Engine::initWindow()
 
 void Engine::addEntities()
 {
-	//Entities.emplace_back(Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color(rand() % 255, rand() % 255, rand() % 255, 255)));
 	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
 	entitiesSpawned++;
 }
@@ -100,7 +101,6 @@ void Engine::pollEvents()
 				addEntities();
 			} else if (e.key.code == sf::Keyboard::R) {
 				addSpring();
-				//std::cout << entitiesSpawned << std::endl;
 			} else if (e.key.code == sf::Keyboard::T) {
 				addSponge();
 			}
@@ -112,17 +112,13 @@ void Engine::pollEvents()
 void Engine::solver(Entity& E, float dt)
 {
 	timeElapsed += timeStep;
-	//std::cout << "Called the solver" << std::endl;
+
 	sf::Vector2f newPos = E.currentPosition + E.currentVelocity * dt + E.currentAcceleration * (dt * dt * 0.5f);
 	applyGravity(E);
 	sf::Vector2f newAcc = (E.force / E.mass);
-	//std::cout << "Acceleration should be: " << newAcc.y << std::endl;
-	//std::cout << "Acceleration is: " << E.currentAcceleration.y << std::endl;
+
 	sf::Vector2f newVel = E.currentVelocity + (E.currentAcceleration + newAcc) * (dt * 0.5f);
-	//std::cout << "Time interval is: " << dt << std::endl;
-	//std::cout << "Velocity y currently is: " << E.currentVelocity.y << std::endl;
-	//std::cout << "Velocity x currently is: " << E.currentVelocity.x << std::endl;
-	//std::cout << "Time elapsed is: " << timeElapsed << std::endl;
+
 	E.currentPosition = newPos;
 	E.currentVelocity = newVel;
 	E.currentAcceleration = newAcc;
@@ -132,35 +128,8 @@ void Engine::solver(Entity& E, float dt)
 
 inline void Engine::applyGravity(Entity& E)
 {
-	//Different forces will be added here
 	E.force += {0.0f, (200.f * E.mass)}; //Gravity
 }
-
-/*
-void Engine::detectEntityBarrierCollision()
-{
-	size_t entityNumber = Entities.size();
-	size_t barrierNumber = rectBarriers.size();
-	for (size_t i = 0; i < barrierNumber; i++) {
-		sf::Vector2f barrierPos = rectBarriers[i]->position;
-		for (size_t j = 0; j < entityNumber; j++) { 
-			if ((rectBarriers[i]->position.y - (Entities[j]->currentPosition.y + Entities[j]->size)) < Entities[j]->size) {
-				//Moving the entity to the right position
-				Entities[j]->currentPosition.y -= ((2 * Entities[j]->size) - (rectBarriers[i]->position.y - Entities[j]->currentPosition.y));
-				//Giving the entity a normal force
-				Entities[j]->normalForce = { 0.f, -200.f * Entities[j]->mass};
-
-				//Giving the entity an impulse
-				Entities[j]->currentVelocity.y *= -Entities[j]->resCoeff;
-
-			} else {
-				//Remove the normal force because the entity is no longer touching a barrier
-				Entities[j]->normalForce = { 0.f, 0.f };
-			}
-		}
-	}
-}
-*/
 
 void Engine::detectEntityBarrierCollision()
 {
@@ -198,19 +167,24 @@ void Engine::detectEntityBarrierCollision()
 
 void Engine::detectEntityEntityCollision()
 {
-	for (Entity* entity1 : Entities) {
+	std::vector<Entity*> nearbyEntities;
 
-		for (Entity* entity2 : Entities) {
+	for (Entity* entity1 : Entities) {
+		nearbyEntities.clear();
+
+		quad.retrieve(nearbyEntities, entity1);
 			
+		for (Entity* entity2 : nearbyEntities) {
+
 			if (entity1 == entity2) {
 				//Prevent comparison between the same two entities
 				break;
 			}
-			
+	
 			const sf::Vector2f LoCij = entity2->centrePosition - entity1->centrePosition;
 			const float LoCij_mag = pow((LoCij.x * LoCij.x) + (LoCij.y * LoCij.y), 0.5f);
 			if (LoCij_mag < entity1->size + entity2->size) {
-				//Moving the entities to the right position
+
 				entity2->currentPosition += ((LoCij / 2.f) / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
 				entity1->currentPosition += -((LoCij / 2.f) / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
 
@@ -230,10 +204,20 @@ void Engine::update()
 
 	for (int n = 0; n < subSteps; ++n) {
 
-		updateSprings();
-		updateEntities();
+		updateQuadtree();
 		detectEntityBarrierCollision();
 		detectEntityEntityCollision();
+		updateSprings();
+		updateEntities();
+	}
+}
+
+void Engine::updateQuadtree()
+{
+	quad.clear();
+	size_t entityNum = Entities.size();
+	for (size_t i = 0; i < entityNum; ++i) {
+		quad.insert(Entities[i]);
 	}
 }
 
@@ -269,12 +253,6 @@ void Engine::updateSprings()
 			it++;
 		}
 	}
-	
-	/*
-	for (Spring& spring : Springs) {
-		spring.update();
-	}
-	*/
 }
 
 void Engine::render()
@@ -314,7 +292,7 @@ Entity::Entity()
 	body.setRadius(size);
 	color = sf::Color::White;
 	body.setFillColor(color);
-	resCoeff = 0.5f;
+	resCoeff = 0.8f;
 
 	//Add a small random horizontal velocity
 	currentVelocity.x = static_cast<float>(rand() % 10);
@@ -329,19 +307,14 @@ Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	body.setRadius(size);
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.5f;
+	resCoeff = 0.8f;
 
 	centrePosition = currentPosition + sf::Vector2f(size, size);
 
 	//Add a small random horizontal velocity
-	currentVelocity.x = static_cast<float>(rand() % 10);
+	//currentVelocity.x = static_cast<float>(rand() % 10);
 	force = { 0.f, 0.f };
 
-	/*
-	float sizeModifier = (rand() % 5);
-	mass = sizeModifier;
-	size = (sizeModifier) * 5.f;
-	*/
 	body.setRadius(size);
 }
 
@@ -455,4 +428,147 @@ void Spring::applyForces()
 void Spring::render(sf::RenderWindow& target)
 {
 	target.draw(springBody);
+}
+
+
+Quadtree::Quadtree()
+{
+	level = 0;
+	isSplit = false;
+	position = { 0.0, 0.0 };
+	bounds = { 0.0, 0.0 };
+}
+
+Quadtree::Quadtree(int pLevel, sf::Vector2f pPosition, sf::Vector2f pBounds)
+{
+	level = pLevel;
+	isSplit = false;
+	position = pPosition;
+	bounds = pBounds;
+}
+
+Quadtree::~Quadtree()
+{
+	clear();
+}
+
+void Quadtree::init(int pLevel, sf::Vector2f pPosition, sf::Vector2f pBounds)
+{
+	level = pLevel;
+	isSplit = false;
+	position = pPosition;
+	bounds = pBounds;
+}
+
+
+int Quadtree::getIndex(Entity* entity)
+{
+	sf::Vector2f entityPos = entity->centrePosition;
+	float size = entity->size;
+
+	
+	float horizontalMidpoint = position.x + bounds.x / 2;
+	float verticalMidpoint = position.y + bounds.y / 2;
+
+	//Will treat the circular entities as squares with sides of length 2*radius
+	//Check if entity fits entirely within upperHalf of the node
+	bool upperHalf = (entityPos.y + size < verticalMidpoint);
+	bool lowerHalf = (entityPos.y - size > verticalMidpoint);
+
+	bool leftHalf = (entityPos.x + size < horizontalMidpoint);
+	bool rightHalf = (entityPos.x - size > horizontalMidpoint);
+
+	if (upperHalf) {
+		if (leftHalf) {
+			return 0;
+		}
+		if (rightHalf) {
+			return 1;
+		}
+	}
+	if (lowerHalf) {
+		if (leftHalf) {
+			return 2;
+		}
+		if (rightHalf) {
+			return 3;
+		}
+	}
+	
+	return -1;
+}
+
+
+void Quadtree::clear()
+{
+	entities.clear();
+
+	for (size_t i = 0; i < nodes.size(); ++i) {
+		nodes[i].clear();
+	}
+	nodes.clear();
+	isSplit = false;
+}
+
+
+
+void Quadtree::split()
+{
+	isSplit = true;
+	float positionX = position.x;
+	float positionY = position.y;
+	sf::Vector2f subBounds(bounds.x / 2, bounds.y / 2);
+
+	//Going upper left, upper right, lower left, lower right
+
+	nodes.emplace_back(Quadtree(level + 1, sf::Vector2f{ positionX, positionY }, subBounds));
+	nodes.emplace_back(Quadtree(level + 1, sf::Vector2f{ positionX + subBounds.x, positionY }, subBounds));
+	nodes.emplace_back(Quadtree(level + 1, sf::Vector2f{ positionX, positionY + subBounds.y }, subBounds));
+	nodes.emplace_back(Quadtree(level + 1, position + subBounds, subBounds));
+}
+
+
+void Quadtree::insert(Entity* entity)
+{
+	if (isSplit) {
+		int index = getIndex(entity);
+		if (index != -1) {
+			nodes[index].insert(entity);
+			return;
+		}
+	}
+	entities.push_back(entity);
+
+	if (entities.size() > max_objects && level < max_levels) {
+		if (!isSplit) {
+			split();
+		}
+
+		for (std::vector<Entity*>::iterator it = entities.begin(); it != entities.end();) {
+
+			int index = getIndex(*it);
+
+			if (index != -1) {
+				nodes[index].insert(*it);
+				it = entities.erase(it);
+			}
+			else {
+				++it;
+			}
+		}
+	}
+}
+
+
+std::vector<Entity*> Quadtree::retrieve(std::vector<Entity*>& returnObjects, Entity* entity)
+{
+	int index = getIndex(entity);
+
+	if (index != -1 && isSplit) {
+		nodes[index].retrieve(returnObjects, entity);
+	}
+
+	returnObjects.insert(returnObjects.end(), entities.begin(), entities.end());
+
+	return returnObjects;
 }

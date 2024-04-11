@@ -7,6 +7,8 @@
 #include <cmath>
 #include <memory>
 
+#include "quadtree.h"
+
 extern int windowWidth;
 extern int windowHeight;
 extern float f_windowWidth;
@@ -82,12 +84,45 @@ public:
 	void render(sf::RenderWindow& target);
 };
 
+class Quadtree
+{
+private:
+	int max_objects = 10;
+	int max_levels = 5;
+
+	sf::Vector2f position;
+	sf::Vector2f bounds;
+
+	int level;
+	bool isSplit;
+	std::vector<Entity*> entities;
+	std::vector<Quadtree> nodes;
+
+	void split();
+	int getIndex(Entity* entity);
+
+public:
+	Quadtree();
+	Quadtree(int pLevel, sf::Vector2f pPosition, sf::Vector2f pBounds);
+	~Quadtree();
+
+	void init(int pLevel, sf::Vector2f pPosition, sf::Vector2f pBounds);
+
+	void clear();
+	void insert(Entity* entity);
+
+	std::vector<Entity*> retrieve(std::vector<Entity*>& returnObjects, Entity* entity);
+
+};
+
 class Engine
 {
 private:
 
 	sf::RenderWindow* window;
 	sf::Event e;
+
+	Quadtree quad;
 
 public:
 	Engine();
@@ -121,6 +156,7 @@ public:
 	void detectEntityEntityCollision();
 
 	void update();
+	void updateQuadtree();
 	void updateEntities();
 	void updateSprings();
 
