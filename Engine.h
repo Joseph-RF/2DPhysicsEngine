@@ -7,8 +7,6 @@
 #include <cmath>
 #include <memory>
 
-#include "quadtree.h"
-
 extern int windowWidth;
 extern int windowHeight;
 extern float f_windowWidth;
