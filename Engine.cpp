@@ -9,6 +9,8 @@ Engine::Engine()
 {
 	initVariables();
 	initWindow();
+	initFont();
+	initText();
 	initScene();
 }
 
@@ -30,6 +32,20 @@ void Engine::initVariables()
 	entitiesSpawned = 0;
 }
 
+void Engine::initFont()
+{
+	if (!font.loadFromFile("C:/Users/zephy/source/repos/SFML Projects/2DPhysicsEngine/Fonts/RobotoMono-SemiBold.ttf")) {
+		std::cout << "ERROR: Failed to load font." << std::endl;
+	}
+}
+
+void Engine::initText()
+{
+	fpstext.setFont(font);
+	fpstext.setCharacterSize(24);
+	fpstext.setFillColor(sf::Color::Red);
+}
+
 void Engine::initScene()
 {
 	//Rectangular barrier near the bottom of the screen to act as a base
@@ -49,7 +65,7 @@ void Engine::initScene()
 void Engine::initWindow()
 {
 	window = new sf::RenderWindow(sf::VideoMode(windowWidth, windowHeight), "Physics Engine");
-	window->setFramerateLimit(60);
+	window->setFramerateLimit(0);
 }
 
 void Engine::addEntities()
@@ -196,6 +212,9 @@ void Engine::update()
 {
 	pollEvents();
 
+	framerate = 1.f / clock.getElapsedTime().asSeconds();
+	clock.restart();
+
 	for (int n = 0; n < subSteps; ++n) {
 
 		updateSprings();
@@ -203,6 +222,7 @@ void Engine::update()
 		detectEntityBarrierCollision();
 		detectEntityEntityCollision();
 	}
+	updateText();
 }
 
 void Engine::updateEntities()
@@ -239,6 +259,11 @@ void Engine::updateSprings()
 	}
 }
 
+void Engine::updateText() 
+{
+	fpstext.setString("FPS: " + std::to_string(framerate));
+}
+
 void Engine::render()
 {
 	window->clear();
@@ -255,6 +280,8 @@ void Engine::render()
 	rightBarrier.renderBarrier(*window);
 	lowerBarrier.renderBarrier(*window);
 	leftBarrier.renderBarrier(*window);
+
+	window->draw(fpstext);
 
 	window->display();
 }

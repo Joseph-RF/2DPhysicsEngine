@@ -88,6 +88,10 @@ private:
 
 	sf::RenderWindow* window;
 	sf::Event e;
+	sf::Clock clock;
+	sf::Font font;
+
+	int framerate;
 
 public:
 	Engine();
@@ -106,8 +110,12 @@ public:
 	rectBarrier lowerBarrier;
 	rectBarrier leftBarrier;
 
+	sf::Text fpstext;
+
 	void initVariables();
 	void initWindow();
+	void initFont();
+	void initText();
 	void initScene();
 
 	void addEntities();
@@ -123,6 +131,7 @@ public:
 	void update();
 	void updateEntities();
 	void updateSprings();
+	void updateText();
 
 	void render();
 
