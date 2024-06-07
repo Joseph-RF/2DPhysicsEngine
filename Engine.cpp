@@ -54,7 +54,6 @@ void Engine::initWindow()
 
 void Engine::addEntities()
 {
-	//Entities.emplace_back(Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color(rand() % 255, rand() % 255, rand() % 255, 255)));
 	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
 	entitiesSpawned++;
 }
@@ -100,7 +99,6 @@ void Engine::pollEvents()
 				addEntities();
 			} else if (e.key.code == sf::Keyboard::R) {
 				addSpring();
-				//std::cout << entitiesSpawned << std::endl;
 			} else if (e.key.code == sf::Keyboard::T) {
 				addSponge();
 			}
@@ -112,17 +110,13 @@ void Engine::pollEvents()
 void Engine::solver(Entity& E, float dt)
 {
 	timeElapsed += timeStep;
-	//std::cout << "Called the solver" << std::endl;
+
 	sf::Vector2f newPos = E.currentPosition + E.currentVelocity * dt + E.currentAcceleration * (dt * dt * 0.5f);
 	applyGravity(E);
 	sf::Vector2f newAcc = (E.force / E.mass);
-	//std::cout << "Acceleration should be: " << newAcc.y << std::endl;
-	//std::cout << "Acceleration is: " << E.currentAcceleration.y << std::endl;
+
 	sf::Vector2f newVel = E.currentVelocity + (E.currentAcceleration + newAcc) * (dt * 0.5f);
-	//std::cout << "Time interval is: " << dt << std::endl;
-	//std::cout << "Velocity y currently is: " << E.currentVelocity.y << std::endl;
-	//std::cout << "Velocity x currently is: " << E.currentVelocity.x << std::endl;
-	//std::cout << "Time elapsed is: " << timeElapsed << std::endl;
+
 	E.currentPosition = newPos;
 	E.currentVelocity = newVel;
 	E.currentAcceleration = newAcc;
@@ -135,32 +129,6 @@ inline void Engine::applyGravity(Entity& E)
 	//Different forces will be added here
 	E.force += {0.0f, (200.f * E.mass)}; //Gravity
 }
-
-/*
-void Engine::detectEntityBarrierCollision()
-{
-	size_t entityNumber = Entities.size();
-	size_t barrierNumber = rectBarriers.size();
-	for (size_t i = 0; i < barrierNumber; i++) {
-		sf::Vector2f barrierPos = rectBarriers[i]->position;
-		for (size_t j = 0; j < entityNumber; j++) { 
-			if ((rectBarriers[i]->position.y - (Entities[j]->currentPosition.y + Entities[j]->size)) < Entities[j]->size) {
-				//Moving the entity to the right position
-				Entities[j]->currentPosition.y -= ((2 * Entities[j]->size) - (rectBarriers[i]->position.y - Entities[j]->currentPosition.y));
-				//Giving the entity a normal force
-				Entities[j]->normalForce = { 0.f, -200.f * Entities[j]->mass};
-
-				//Giving the entity an impulse
-				Entities[j]->currentVelocity.y *= -Entities[j]->resCoeff;
-
-			} else {
-				//Remove the normal force because the entity is no longer touching a barrier
-				Entities[j]->normalForce = { 0.f, 0.f };
-			}
-		}
-	}
-}
-*/
 
 void Engine::detectEntityBarrierCollision()
 {
@@ -269,12 +237,6 @@ void Engine::updateSprings()
 			it++;
 		}
 	}
-	
-	/*
-	for (Spring& spring : Springs) {
-		spring.update();
-	}
-	*/
 }
 
 void Engine::render()
@@ -336,12 +298,6 @@ Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	//Add a small random horizontal velocity
 	currentVelocity.x = static_cast<float>(rand() % 10);
 	force = { 0.f, 0.f };
-
-	/*
-	float sizeModifier = (rand() % 5);
-	mass = sizeModifier;
-	size = (sizeModifier) * 5.f;
-	*/
 	body.setRadius(size);
 }
 
