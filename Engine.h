@@ -111,6 +111,7 @@ public:
 	rectBarrier leftBarrier;
 
 	sf::Text fpstext;
+	sf::Text entitiesSpawnedText;
 
 	void initVariables();
 	void initWindow();
@@ -128,7 +129,7 @@ public:
 	void detectEntityBarrierCollision();
 	void detectEntityEntityCollision();
 
-	void update();
+	void update(float dt);
 	void updateEntities();
 	void updateSprings();
 	void updateText();

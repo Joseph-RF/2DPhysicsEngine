@@ -26,7 +26,7 @@ Engine::~Engine()
 void Engine::initVariables()
 {
 	window = nullptr;
-	timeStep = (1.f / 30.f);
+	timeStep = 0.0f;
 	timeElapsed = 0.0f;
 	subSteps = 8;
 	entitiesSpawned = 0;
@@ -44,6 +44,11 @@ void Engine::initText()
 	fpstext.setFont(font);
 	fpstext.setCharacterSize(24);
 	fpstext.setFillColor(sf::Color::Red);
+
+	entitiesSpawnedText.setFont(font);
+	entitiesSpawnedText.setCharacterSize(24);
+	entitiesSpawnedText.setFillColor(sf::Color::Red);
+	entitiesSpawnedText.setPosition(f_windowWidth * 0.75f, 0.0f);
 }
 
 void Engine::initScene()
@@ -143,7 +148,7 @@ void Engine::solver(Entity& E, float dt)
 inline void Engine::applyGravity(Entity& E)
 {
 	//Different forces will be added here
-	E.force += {0.0f, (200.f * E.mass)}; //Gravity
+	E.force += {0.0f, (1000.f * E.mass)}; //Gravity
 }
 
 void Engine::detectEntityBarrierCollision()
@@ -208,8 +213,10 @@ void Engine::detectEntityEntityCollision()
 	}
 }
 
-void Engine::update()
+void Engine::update(float dt)
 {
+	timeStep = dt;
+
 	pollEvents();
 
 	framerate = 1.f / clock.getElapsedTime().asSeconds();
@@ -262,6 +269,7 @@ void Engine::updateSprings()
 void Engine::updateText() 
 {
 	fpstext.setString("FPS: " + std::to_string(framerate));
+	entitiesSpawnedText.setString("Entities spawned: " + std::to_string(entitiesSpawned));
 }
 
 void Engine::render()
@@ -282,6 +290,7 @@ void Engine::render()
 	leftBarrier.renderBarrier(*window);
 
 	window->draw(fpstext);
+	window->draw(entitiesSpawnedText);
 
 	window->display();
 }
@@ -303,7 +312,7 @@ Entity::Entity()
 	body.setRadius(size);
 	color = sf::Color::White;
 	body.setFillColor(color);
-	resCoeff = 0.5f;
+	resCoeff = 0.75f;
 
 	//Add a small random horizontal velocity
 	currentVelocity.x = static_cast<float>(rand() % 10);
@@ -318,7 +327,7 @@ Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	body.setRadius(size);
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.5f;
+	resCoeff = 0.75f;
 
 	centrePosition = currentPosition + sf::Vector2f(size, size);
 
