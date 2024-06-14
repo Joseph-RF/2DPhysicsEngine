@@ -34,7 +34,7 @@ void Engine::initVariables()
 
 void Engine::initFont()
 {
-	if (!font.loadFromFile("C:/Users/zephy/source/repos/SFML Projects/2DPhysicsEngine/Fonts/RobotoMono-SemiBold.ttf")) {
+	if (!font.loadFromFile("Fonts/RobotoMono-Semibold.ttf")) {
 		std::cout << "ERROR: Failed to load font." << std::endl;
 	}
 }
