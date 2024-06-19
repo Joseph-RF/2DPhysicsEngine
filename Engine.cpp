@@ -95,15 +95,15 @@ void Engine::addSponge()
 	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 120.f), 1.f, 10.f, sf::Color::Green));
 	Entities.emplace_back(new Entity(sf::Vector2f(85.f, 85.f), 1.f, 10.f, sf::Color::Green));
 
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 5], 225.f, 1.f, 49.5f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 4], 225.f, 1.f, 49.5f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 3], 225.f, 1.f, 49.5f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 2], 225.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 5], 500.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 4], 500.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 3], 500.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 2], 500.f, 1.f, 49.5f));
 
-	Springs.emplace_back(Spring(Entities[Entities.size() - 5], Entities[Entities.size() - 4], 225.f, 1.f, 70.f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 4], Entities[Entities.size() - 2], 225.f, 1.f, 70.f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 3], 225.f, 1.f, 70.f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 3], Entities[Entities.size() - 5], 225.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 5], Entities[Entities.size() - 4], 500.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 4], Entities[Entities.size() - 2], 500.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 3], 500.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 3], Entities[Entities.size() - 5], 500.f, 1.f, 70.f));
 }
 
 void Engine::pollEvents()
@@ -130,7 +130,26 @@ void Engine::pollEvents()
 
 void Engine::solver(Entity& E, float dt)
 {
+	//Verlet integration being used because this simulation involves spheres being dependent on each other's motion.
+	//Verlet offers numerical stability as well as being fast and accurate enough for the purposes of this software.
+	//Will use verlet WITHOUT velocities
+
+	// TODO: Update to accomodate for Verlet
+
 	timeElapsed += timeStep;
+
+	//E.currentVelocity = (E.currentPosition - E.oldPosition) / dt;
+
+	sf::Vector2f displacement = E.currentPosition - E.oldPosition;
+
+	E.oldPosition = E.currentPosition;
+
+	applyGravity(E);
+	E.currentAcceleration = E.force / E.mass;
+
+	E.currentPosition += displacement + (E.currentAcceleration * dt * dt);
+
+	/*
 
 	sf::Vector2f newPos = E.currentPosition + E.currentVelocity * dt + E.currentAcceleration * (dt * dt * 0.5f);
 	applyGravity(E);
@@ -142,13 +161,15 @@ void Engine::solver(Entity& E, float dt)
 	E.currentVelocity = newVel;
 	E.currentAcceleration = newAcc;
 
+	*/
+
 	E.force = { 0.f, 0.f };
 }
 
 inline void Engine::applyGravity(Entity& E)
 {
 	//Different forces will be added here
-	E.force += {0.0f, (1000.f * E.mass)}; //Gravity
+	E.force += {0.f * E.mass, (1000.f * E.mass)}; //Gravity
 }
 
 void Engine::detectEntityBarrierCollision()
@@ -158,35 +179,44 @@ void Engine::detectEntityBarrierCollision()
 
 		Entity& entity = *Entities[i];
 
-		if (lowerBarrier.position.y - entity.currentPosition.y <= 2 * entity.size) {
-			//Move the entity to the right position (not inside of the barrier)
-			entity.currentPosition.y -= ((2 * entity.size) - (lowerBarrier.position.y - entity.currentPosition.y));
-			//Give the enitity an impulse
-			entity.currentVelocity.y *= -entity.resCoeff;
+		const sf::Vector2f displacement = entity.currentPosition - entity.oldPosition;
+
+		if (entity.currentPosition.y > lowerBarrier.position.y - (2 * entity.size)) {
+			//Move the entity to the very edge where it would be acceptable for it to be in
+
+			entity.currentPosition.y = lowerBarrier.position.y - (2 * entity.size);
+
+			//Change the old position such that the entitiy receieves the right impulse. Term in brackets accounts for the coefficient 
+			// of restitution since displacement is a stand-in for velocity.
+			entity.oldPosition.y = entity.currentPosition.y + (entity.resCoeff * displacement.y);
 		}
-		if (rightBarrier.position.x - entity.currentPosition.x <= 2 * entity.size) {
 
-			entity.currentPosition.x -= ((2 * entity.size) - (rightBarrier.position.x - entity.currentPosition.x));
+		if (entity.currentPosition.x > rightBarrier.position.x - (2 * entity.size)) {
 
-			entity.currentVelocity *= -entity.resCoeff;
-		} 
-		if (upperBarrier.position.y + 20 > entity.currentPosition.y) {
+			entity.currentPosition.x = rightBarrier.position.x - (2 * entity.size);
 
-			entity.currentPosition.y += (upperBarrier.position.y + 20.f - entity.currentPosition.y);
-
-			entity.currentVelocity.y *= -entity.resCoeff;
+			entity.oldPosition.x = entity.currentPosition.x + (entity.resCoeff * displacement.x);
 		}
-		if (leftBarrier.position.x + 20 > entity.currentPosition.x) {
 
-			entity.currentPosition.x += (leftBarrier.position.x + 20 - entity.currentPosition.x);
+		if (entity.currentPosition.y < upperBarrier.position.y + 20) {
 
-			entity.currentVelocity.x *= -entity.resCoeff;
+			entity.currentPosition.y = upperBarrier.position.y + 20;
+
+			entity.oldPosition.y = entity.currentPosition.y + (entity.resCoeff * displacement.y);
+		}
+
+		if (entity.currentPosition.x < upperBarrier.position.x + 20) {
+
+			entity.currentPosition.x = upperBarrier.position.x + 20;
+
+			entity.oldPosition.x = entity.currentPosition.x + (entity.resCoeff * displacement.x);
 		}
 	}
 }
 
 void Engine::detectEntityEntityCollision()
 {
+	// TODO: Fix this to work with Verlet integration
 	for (Entity* entity1 : Entities) {
 
 		for (Entity* entity2 : Entities) {
@@ -195,19 +225,70 @@ void Engine::detectEntityEntityCollision()
 				//Prevent comparison between the same two entities
 				break;
 			}
-			
-			const sf::Vector2f LoCij = entity2->centrePosition - entity1->centrePosition;
-			const float LoCij_mag = pow((LoCij.x * LoCij.x) + (LoCij.y * LoCij.y), 0.5f);
-			if (LoCij_mag < entity1->size + entity2->size) {
-				//Moving the entities to the right position
-				entity2->currentPosition += ((LoCij / 2.f) / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
-				entity1->currentPosition += -((LoCij / 2.f) / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
 
-				const sf::Vector2f relativeVel = entity2->currentVelocity - entity1->currentVelocity;
+			//Check if the spheres are physically touching
+			sf::Vector2f LoCij = entity2->centrePosition - entity1->centrePosition;
+			float LoCij_mag = pow((LoCij.x * LoCij.x) + (LoCij.y * LoCij.y), 0.5f);
+
+			if (LoCij_mag < entity1->size + entity2->size) {
+
+				sf::Vector2f norm = LoCij / LoCij_mag;
+
+				norm = sf::Vector2f(0.5 * (entity1->size + entity2->size - LoCij_mag) * norm.x, 0.5 * (entity1->size + entity2->size - LoCij_mag) * norm.y);
+
+				entity1->currentPosition -= entity1->resCoeff * norm;
+
+				entity2->currentPosition += entity1->resCoeff * norm;
+
+				/*
+				//Start by moving entities to the right position. 
+				
+				sf::Vector2f displacement_i = entity1->currentPosition - entity1->oldPosition;
+				sf::Vector2f displacement_j = entity2->currentPosition - entity2->oldPosition;
+
+				const float displacement_i_mag = pow(displacement_i.x * displacement_i.x + displacement_i.y * displacement_i.y, 0.5f);
+				const float displacement_j_mag = pow(displacement_j.x * displacement_j.x + displacement_j.y * displacement_j.y, 0.5f);
+
+				entity1->currentPosition -= 0.5f * (LoCij / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
+				entity2->currentPosition += 0.5f * (LoCij / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
+
+				//entity1->currentPosition -= 0.5f * ((entity1->size + entity2->size) - LoCij_mag) * (displacement_i / displacement_i_mag);
+				//entity2->currentPosition -= 0.5f * ((entity1->size + entity2->size) - LoCij_mag) * (displacement_j / displacement_j_mag);
+				
+				entity1->oldPosition = entity1->currentPosition;
+				entity2->oldPosition = entity2->currentPosition;
+
+				sf::Vector2f relativeVel = (displacement_j - displacement_i) / timeStep;
 
 				const float impulse = (1.f + entity1->resCoeff) * (((relativeVel.x * LoCij.x / LoCij_mag)) + (relativeVel.y * LoCij.y / LoCij_mag)) / (1.f / entity1->mass + 1.f / entity2->mass);
-				entity1->currentVelocity += impulse / entity1->mass * LoCij / LoCij_mag;
-				entity2->currentVelocity -= impulse / entity2->mass * LoCij / LoCij_mag;
+				entity1->oldPosition = entity1->currentPosition - (impulse / entity1->mass * LoCij / LoCij_mag) * timeStep;
+				entity2->oldPosition = entity2->currentPosition + (impulse / entity2->mass * LoCij / LoCij_mag) * timeStep;
+				*/
+				/*
+
+				//Reflect the old positions of the entities along the collision normal to produce a "bounce"
+				//Start by redefining the displacement each entity has undergone and their line of centres
+				sf::Vector2f displacement_i = entity1->currentPosition - entity1->oldPosition;
+				sf::Vector2f displacement_j = entity2->currentPosition - entity2->oldPosition;
+
+				LoCij = entity2->centrePosition - entity1->centrePosition;
+				LoCij_mag = pow((LoCij.x * LoCij.x) + (LoCij.y * LoCij.y), 0.5f);
+
+				const float dot_product_i = displacement_i.x * (LoCij / LoCij_mag).x + displacement_i.y * (LoCij / LoCij_mag).y;
+				const float dot_product_j = displacement_j.x * (LoCij / LoCij_mag).x + displacement_j.y * (LoCij / LoCij_mag).y;
+
+				const sf::Vector2f newVel_i = displacement_i - 2 * dot_product_i * (LoCij / LoCij_mag);
+				const sf::Vector2f newVel_j = displacement_j - 2 * dot_product_j * (LoCij / LoCij_mag);
+
+				entity1->oldPosition = entity1->currentPosition - entity1->resCoeff * newVel_i;
+				entity2->oldPosition = entity2->currentPosition - entity2->resCoeff * newVel_j;
+				*/
+
+				//entity1->currentPosition -= 0.5f * (LoCij / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
+				//entity2->currentPosition += 0.5f * (LoCij / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
+				//const float impulse = (entity1->resCoeff) * (((relativeVel.x * LoCij.x / LoCij_mag)) + (relativeVel.y * LoCij.y / LoCij_mag)) / (1.f / entity1->mass + 1.f / entity2->mass);
+				//entity1->oldPosition = entity1->currentPosition - (impulse / entity1->mass * LoCij / LoCij_mag) * timeStep;
+				//entity2->oldPosition = entity2->currentPosition + (impulse / entity2->mass * LoCij / LoCij_mag) * timeStep;
 			}
 		}
 	}
@@ -260,7 +341,7 @@ void Engine::updateSprings()
 		}
 		else {
 			it->update();
-			it->applyForces();
+			it->applyForces(timeStep);
 			it++;
 		}
 	}
@@ -307,6 +388,7 @@ const bool Engine::isWindowOpen() const
 Entity::Entity()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
+	oldPosition = currentPosition;
 	mass = 1;
 	size = 10.f;
 	body.setRadius(size);
@@ -322,6 +404,7 @@ Entity::Entity()
 Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
 {
 	currentPosition = inputPos;
+	oldPosition = currentPosition;
 	mass = inputMass;
 	size = inputSize;
 	body.setRadius(size);
@@ -431,17 +514,19 @@ void Spring::update()
 	centreOfMass = (entity1->mass * entity1->centrePosition + entity2->mass * entity2->centrePosition) / (entity1->mass + entity2->mass);
 }
 
-void Spring::applyForces()
+void Spring::applyForces(float dt)
 {
 	//Will first find where both entities should be a.k.a their rest positions
 	const sf::Vector2f v = entity2->centrePosition - entity1->centrePosition;
+	const sf::Vector2f entity1velocity = (entity1->currentPosition - entity1->oldPosition) / dt;
+	const sf::Vector2f entity2velocity = (entity2->currentPosition - entity2->oldPosition) / dt;
 
 	const sf::Vector2f e1RestPos = centreOfMass - (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e1RestDistance);
 	const sf::Vector2f e2RestPos = centreOfMass + (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e2RestDistance);
 
 	//Apply the restoring force to the entities
-	entity1->force += -springConstant * (entity1->centrePosition - e1RestPos) - dampingConstant * (entity1->currentVelocity - entity2->currentVelocity);
-	entity2->force += -springConstant * (entity2->centrePosition - e2RestPos) - dampingConstant * (entity2->currentVelocity - entity1->currentVelocity);
+	entity1->force += -springConstant * (entity1->centrePosition - e1RestPos) - dampingConstant * (entity1velocity - entity2velocity);
+	entity2->force += -springConstant * (entity2->centrePosition - e2RestPos) - dampingConstant * (entity2velocity - entity1velocity);
 }
 
 void Spring::render(sf::RenderWindow& target)

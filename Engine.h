@@ -16,6 +16,7 @@ class Entity
 {
 public:
 	sf::Vector2f currentPosition;
+	sf::Vector2f oldPosition;
 	sf::Vector2f centrePosition;
 	sf::Vector2f currentVelocity;
 	sf::Vector2f currentAcceleration;
@@ -77,7 +78,7 @@ public:
 	~Spring();
 
 	void update();
-	void applyForces();
+	void applyForces(float dt);
 
 	void render(sf::RenderWindow& target);
 };
