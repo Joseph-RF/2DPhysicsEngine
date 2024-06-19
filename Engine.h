@@ -18,7 +18,6 @@ public:
 	sf::Vector2f currentPosition;
 	sf::Vector2f oldPosition;
 	sf::Vector2f centrePosition;
-	sf::Vector2f currentVelocity;
 	sf::Vector2f currentAcceleration;
 	sf::Vector2f force;
 
