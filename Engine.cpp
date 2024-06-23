@@ -1,9 +1,13 @@
 #include "Engine.h"
 
 int windowWidth = 1200;
-int windowHeight = 860;
+int windowHeight = 800;
 float f_windowWidth = 1200.f;
-float f_windowHeight = 860.f;
+float f_windowHeight = 800.f;
+
+int cell_size = 10;
+int cell_number_x = windowWidth / cell_size;
+int cell_number_y = windowHeight / cell_size;
 
 Engine::Engine()
 {
@@ -30,6 +34,8 @@ void Engine::initVariables()
 	timeElapsed = 0.0f;
 	subSteps = 8;
 	entitiesSpawned = 0;
+
+	grid = std::vector<std::vector<Entity*>>(cell_number_x * cell_number_y);
 }
 
 void Engine::initFont()
@@ -55,7 +61,7 @@ void Engine::initScene()
 {
 	upperBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, 0));
 	rightBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(f_windowWidth - 20, 0));
-	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.9f));
+	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.95f));
 	leftBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, 0));
 }
 
@@ -67,7 +73,7 @@ void Engine::initWindow()
 
 void Engine::addEntities()
 {
-	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 5.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
@@ -190,36 +196,68 @@ void Engine::detectEntityBarrierCollision()
 	}
 }
 
-void Engine::detectEntityEntityCollision()
+void Engine::wideSweep()
 {
-	// TODO: Fix this to work with Verlet integration
-	for (Entity* entity1 : Entities) {
+	int number_of_cells = cell_number_x * cell_number_y;
+	for (size_t i = 0; i < number_of_cells; ++i) {
+		for (size_t j = 0; j < grid[i].size(); ++j) {
+			detectEntityEntityCollision(i, grid[i][j]);
+			detectEntityEntityCollision(i - 1, grid[i][j]);
+			detectEntityEntityCollision(i + 1, grid[i][j]);
 
-		for (Entity* entity2 : Entities) {
-			
-			if (entity1 == entity2) {
-				//Prevent comparison between the same two entities
-				break;
-			}
+			detectEntityEntityCollision(i + cell_number_x, grid[i][j]);
+			detectEntityEntityCollision(i + cell_number_x - 1, grid[i][j]);
+			detectEntityEntityCollision(i + cell_number_x + 1, grid[i][j]);
 
-			//Check if the entities are physically touching
-			sf::Vector2f separation = entity2->currentPosition - entity1->currentPosition;
-			float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
-
-			if (separation_magnitude < entity1->size + entity2->size) {
-
-				//Resolve collision between the entities
-				sf::Vector2f norm = separation / separation_magnitude;
-
-				norm = sf::Vector2f(0.5 * (entity1->size + entity2->size - separation_magnitude) * norm.x, 
-									0.5 * (entity1->size + entity2->size - separation_magnitude) * norm.y);
-
-				entity1->currentPosition -= entity1->resCoeff * norm;
-
-				entity2->currentPosition += entity1->resCoeff * norm;
-			}
+			detectEntityEntityCollision(i - cell_number_x, grid[i][j]);
+			detectEntityEntityCollision(i - cell_number_x - 1, grid[i][j]);
+			detectEntityEntityCollision(i - cell_number_x + 1, grid[i][j]);
 		}
 	}
+}
+
+void Engine::detectEntityEntityCollision(int grid_cell, Entity* E)
+{
+	if ((grid_cell >= cell_number_x * cell_number_y) || grid_cell < 0) { return; }
+
+	for (size_t k = 0; k < grid[grid_cell].size(); ++k) {
+
+		if (E == grid[grid_cell][k]) {
+			break;
+		}
+
+		sf::Vector2f separation = grid[grid_cell][k]->currentPosition - E->currentPosition;
+		float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
+
+		if (separation_magnitude < E->size + grid[grid_cell][k]->size) {
+
+			//Resolve collision between the entities
+			sf::Vector2f norm = separation / separation_magnitude;
+
+			norm = sf::Vector2f(0.5 * (E->size + grid[grid_cell][k]->size - separation_magnitude) * norm.x,
+				0.5 * (E->size + grid[grid_cell][k]->size - separation_magnitude) * norm.y);
+
+			E->currentPosition -= E->resCoeff * norm;
+
+			grid[grid_cell][k]->currentPosition += E->resCoeff * norm;
+		}
+	}
+}
+
+void Engine::sortEntities()
+{
+	for (int i = 0; i < cell_number_x * cell_number_y; ++i) {
+		grid[i].clear();
+	}
+
+	for (Entity* entity : Entities) {
+		grid[getCellNumber(entity->centrePosition)].emplace_back(entity);
+	}
+}
+
+int Engine::getCellNumber(sf::Vector2f pos)
+{
+	return ((std::floor(pos.x / cell_size)) + std::floor(pos.y / cell_size) * cell_number_x);
 }
 
 void Engine::update(float dt)
@@ -231,12 +269,16 @@ void Engine::update(float dt)
 	framerate = 1.f / clock.getElapsedTime().asSeconds();
 	clock.restart();
 
+	addEntities();
+
 	for (int n = 0; n < subSteps; ++n) {
+
+		sortEntities();
 
 		updateSprings();
 		updateEntities();
 		detectEntityBarrierCollision();
-		detectEntityEntityCollision();
+		wideSweep();
 	}
 	updateText();
 }
@@ -318,7 +360,7 @@ Entity::Entity()
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
 	oldPosition = currentPosition;
 	mass = 1;
-	size = 10.f;
+	size = 5.f;
 	body.setRadius(size);
 	color = sf::Color::White;
 	body.setFillColor(color);
