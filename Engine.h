@@ -12,12 +12,16 @@ extern int windowHeight;
 extern float f_windowWidth;
 extern float f_windowHeight;
 
+extern int cell_size;
+extern int cell_number_x;
+extern int cell_number_y;
+
 class Entity
 {
 public:
 	sf::Vector2f currentPosition;
+	sf::Vector2f oldPosition;
 	sf::Vector2f centrePosition;
-	sf::Vector2f currentVelocity;
 	sf::Vector2f currentAcceleration;
 	sf::Vector2f force;
 
@@ -77,7 +81,7 @@ public:
 	~Spring();
 
 	void update();
-	void applyForces();
+	void applyForces(float dt);
 
 	void render(sf::RenderWindow& target);
 };
@@ -110,6 +114,8 @@ public:
 	rectBarrier lowerBarrier;
 	rectBarrier leftBarrier;
 
+	std::vector<std::vector<Entity*>> grid;
+
 	sf::Text fpstext;
 	sf::Text entitiesSpawnedText;
 
@@ -127,7 +133,10 @@ public:
 	void solver(Entity& E, float dt);
 	inline void applyGravity(Entity& E);
 	void detectEntityBarrierCollision();
-	void detectEntityEntityCollision();
+	void wideSweep();
+	void detectEntityEntityCollision(int grid_cell, Entity* E);
+	void sortEntities();
+	int getCellNumber(sf::Vector2f pos);
 
 	void update(float dt);
 	void updateEntities();

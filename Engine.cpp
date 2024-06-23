@@ -1,9 +1,13 @@
 #include "Engine.h"
 
 int windowWidth = 1200;
-int windowHeight = 860;
+int windowHeight = 800;
 float f_windowWidth = 1200.f;
-float f_windowHeight = 860.f;
+float f_windowHeight = 800.f;
+
+int cell_size = 10;
+int cell_number_x = windowWidth / cell_size;
+int cell_number_y = windowHeight / cell_size;
 
 Engine::Engine()
 {
@@ -30,6 +34,8 @@ void Engine::initVariables()
 	timeElapsed = 0.0f;
 	subSteps = 8;
 	entitiesSpawned = 0;
+
+	grid = std::vector<std::vector<Entity*>>(cell_number_x * cell_number_y);
 }
 
 void Engine::initFont()
@@ -53,17 +59,9 @@ void Engine::initText()
 
 void Engine::initScene()
 {
-	//Rectangular barrier near the bottom of the screen to act as a base
-	//rectBarriers.push_back(new rectBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.9f)));
-	//rectBarriers.push_back(new rectBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, 0)));
-	//rectBarriers.push_back(new rectBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, f_windowHeight - 20)));
-	//rectBarriers.push_back(new rectBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight)));
-	//For now will just add a singular entity near the top of the screen in the middle
-	//Entities.push_back(new Entity(sf::Vector2f(f_windowWidth / 2, f_windowHeight * 0.1f), 1.f, 120.f, sf::Color::White));
-
 	upperBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, 0));
 	rightBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(f_windowWidth - 20, 0));
-	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.9f));
+	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.95f));
 	leftBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, 0));
 }
 
@@ -75,7 +73,7 @@ void Engine::initWindow()
 
 void Engine::addEntities()
 {
-	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 5.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
@@ -95,15 +93,15 @@ void Engine::addSponge()
 	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 120.f), 1.f, 10.f, sf::Color::Green));
 	Entities.emplace_back(new Entity(sf::Vector2f(85.f, 85.f), 1.f, 10.f, sf::Color::Green));
 
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 5], 225.f, 1.f, 49.5f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 4], 225.f, 1.f, 49.5f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 3], 225.f, 1.f, 49.5f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 2], 225.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 5], 500.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 4], 500.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 3], 500.f, 1.f, 49.5f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 2], 500.f, 1.f, 49.5f));
 
-	Springs.emplace_back(Spring(Entities[Entities.size() - 5], Entities[Entities.size() - 4], 225.f, 1.f, 70.f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 4], Entities[Entities.size() - 2], 225.f, 1.f, 70.f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 3], 225.f, 1.f, 70.f));
-	Springs.emplace_back(Spring(Entities[Entities.size() - 3], Entities[Entities.size() - 5], 225.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 5], Entities[Entities.size() - 4], 500.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 4], Entities[Entities.size() - 2], 500.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 3], 500.f, 1.f, 70.f));
+	Springs.emplace_back(Spring(Entities[Entities.size() - 3], Entities[Entities.size() - 5], 500.f, 1.f, 70.f));
 }
 
 void Engine::pollEvents()
@@ -130,17 +128,22 @@ void Engine::pollEvents()
 
 void Engine::solver(Entity& E, float dt)
 {
+	//Verlet integration being used because this simulation involves spheres being dependent on each other's motion.
+	//Verlet offers numerical stability as well as being fast and accurate enough for the purposes of this software.
+	//Will use verlet WITHOUT velocities
+
+
 	timeElapsed += timeStep;
 
-	sf::Vector2f newPos = E.currentPosition + E.currentVelocity * dt + E.currentAcceleration * (dt * dt * 0.5f);
+
+	sf::Vector2f displacement = E.currentPosition - E.oldPosition;
+
+	E.oldPosition = E.currentPosition;
+
 	applyGravity(E);
-	sf::Vector2f newAcc = (E.force / E.mass);
+	E.currentAcceleration = E.force / E.mass;
 
-	sf::Vector2f newVel = E.currentVelocity + (E.currentAcceleration + newAcc) * (dt * 0.5f);
-
-	E.currentPosition = newPos;
-	E.currentVelocity = newVel;
-	E.currentAcceleration = newAcc;
+	E.currentPosition += displacement + (E.currentAcceleration * dt * dt);
 
 	E.force = { 0.f, 0.f };
 }
@@ -148,7 +151,7 @@ void Engine::solver(Entity& E, float dt)
 inline void Engine::applyGravity(Entity& E)
 {
 	//Different forces will be added here
-	E.force += {0.0f, (1000.f * E.mass)}; //Gravity
+	E.force += {0.f * E.mass, (1000.f * E.mass)}; //Gravity
 }
 
 void Engine::detectEntityBarrierCollision()
@@ -158,59 +161,103 @@ void Engine::detectEntityBarrierCollision()
 
 		Entity& entity = *Entities[i];
 
-		if (lowerBarrier.position.y - entity.currentPosition.y <= 2 * entity.size) {
-			//Move the entity to the right position (not inside of the barrier)
-			entity.currentPosition.y -= ((2 * entity.size) - (lowerBarrier.position.y - entity.currentPosition.y));
-			//Give the enitity an impulse
-			entity.currentVelocity.y *= -entity.resCoeff;
+		const sf::Vector2f displacement = entity.currentPosition - entity.oldPosition;
+
+		if (entity.currentPosition.y > lowerBarrier.position.y - (2 * entity.size)) {
+			//Move the entity to the very edge where it would be acceptable for it to be in
+
+			entity.currentPosition.y = lowerBarrier.position.y - (2 * entity.size);
+
+			//Change the old position such that the entitiy receieves the right impulse. Term in brackets accounts for the coefficient 
+			// of restitution since displacement is a stand-in for velocity.
+			entity.oldPosition.y = entity.currentPosition.y + (entity.resCoeff * displacement.y);
 		}
-		if (rightBarrier.position.x - entity.currentPosition.x <= 2 * entity.size) {
 
-			entity.currentPosition.x -= ((2 * entity.size) - (rightBarrier.position.x - entity.currentPosition.x));
+		if (entity.currentPosition.x > rightBarrier.position.x - (2 * entity.size)) {
 
-			entity.currentVelocity *= -entity.resCoeff;
-		} 
-		if (upperBarrier.position.y + 20 > entity.currentPosition.y) {
+			entity.currentPosition.x = rightBarrier.position.x - (2 * entity.size);
 
-			entity.currentPosition.y += (upperBarrier.position.y + 20.f - entity.currentPosition.y);
-
-			entity.currentVelocity.y *= -entity.resCoeff;
+			entity.oldPosition.x = entity.currentPosition.x + (entity.resCoeff * displacement.x);
 		}
-		if (leftBarrier.position.x + 20 > entity.currentPosition.x) {
 
-			entity.currentPosition.x += (leftBarrier.position.x + 20 - entity.currentPosition.x);
+		if (entity.currentPosition.y < upperBarrier.position.y + 20) {
 
-			entity.currentVelocity.x *= -entity.resCoeff;
+			entity.currentPosition.y = upperBarrier.position.y + 20;
+
+			entity.oldPosition.y = entity.currentPosition.y + (entity.resCoeff * displacement.y);
+		}
+
+		if (entity.currentPosition.x < upperBarrier.position.x + 20) {
+
+			entity.currentPosition.x = upperBarrier.position.x + 20;
+
+			entity.oldPosition.x = entity.currentPosition.x + (entity.resCoeff * displacement.x);
 		}
 	}
 }
 
-void Engine::detectEntityEntityCollision()
+void Engine::wideSweep()
 {
-	for (Entity* entity1 : Entities) {
+	int number_of_cells = cell_number_x * cell_number_y;
+	for (size_t i = 0; i < number_of_cells; ++i) {
+		for (size_t j = 0; j < grid[i].size(); ++j) {
+			detectEntityEntityCollision(i, grid[i][j]);
+			detectEntityEntityCollision(i - 1, grid[i][j]);
+			detectEntityEntityCollision(i + 1, grid[i][j]);
 
-		for (Entity* entity2 : Entities) {
-			
-			if (entity1 == entity2) {
-				//Prevent comparison between the same two entities
-				break;
-			}
-			
-			const sf::Vector2f LoCij = entity2->centrePosition - entity1->centrePosition;
-			const float LoCij_mag = pow((LoCij.x * LoCij.x) + (LoCij.y * LoCij.y), 0.5f);
-			if (LoCij_mag < entity1->size + entity2->size) {
-				//Moving the entities to the right position
-				entity2->currentPosition += ((LoCij / 2.f) / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
-				entity1->currentPosition += -((LoCij / 2.f) / LoCij_mag) * (entity1->size + entity2->size - LoCij_mag);
+			detectEntityEntityCollision(i + cell_number_x, grid[i][j]);
+			detectEntityEntityCollision(i + cell_number_x - 1, grid[i][j]);
+			detectEntityEntityCollision(i + cell_number_x + 1, grid[i][j]);
 
-				const sf::Vector2f relativeVel = entity2->currentVelocity - entity1->currentVelocity;
-
-				const float impulse = (1.f + entity1->resCoeff) * (((relativeVel.x * LoCij.x / LoCij_mag)) + (relativeVel.y * LoCij.y / LoCij_mag)) / (1.f / entity1->mass + 1.f / entity2->mass);
-				entity1->currentVelocity += impulse / entity1->mass * LoCij / LoCij_mag;
-				entity2->currentVelocity -= impulse / entity2->mass * LoCij / LoCij_mag;
-			}
+			detectEntityEntityCollision(i - cell_number_x, grid[i][j]);
+			detectEntityEntityCollision(i - cell_number_x - 1, grid[i][j]);
+			detectEntityEntityCollision(i - cell_number_x + 1, grid[i][j]);
 		}
 	}
+}
+
+void Engine::detectEntityEntityCollision(int grid_cell, Entity* E)
+{
+	if ((grid_cell >= cell_number_x * cell_number_y) || grid_cell < 0) { return; }
+
+	for (size_t k = 0; k < grid[grid_cell].size(); ++k) {
+
+		if (E == grid[grid_cell][k]) {
+			break;
+		}
+
+		sf::Vector2f separation = grid[grid_cell][k]->currentPosition - E->currentPosition;
+		float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
+
+		if (separation_magnitude < E->size + grid[grid_cell][k]->size) {
+
+			//Resolve collision between the entities
+			sf::Vector2f norm = separation / separation_magnitude;
+
+			norm = sf::Vector2f(0.5 * (E->size + grid[grid_cell][k]->size - separation_magnitude) * norm.x,
+				0.5 * (E->size + grid[grid_cell][k]->size - separation_magnitude) * norm.y);
+
+			E->currentPosition -= E->resCoeff * norm;
+
+			grid[grid_cell][k]->currentPosition += E->resCoeff * norm;
+		}
+	}
+}
+
+void Engine::sortEntities()
+{
+	for (int i = 0; i < cell_number_x * cell_number_y; ++i) {
+		grid[i].clear();
+	}
+
+	for (Entity* entity : Entities) {
+		grid[getCellNumber(entity->centrePosition)].emplace_back(entity);
+	}
+}
+
+int Engine::getCellNumber(sf::Vector2f pos)
+{
+	return ((std::floor(pos.x / cell_size)) + std::floor(pos.y / cell_size) * cell_number_x);
 }
 
 void Engine::update(float dt)
@@ -222,12 +269,16 @@ void Engine::update(float dt)
 	framerate = 1.f / clock.getElapsedTime().asSeconds();
 	clock.restart();
 
+	addEntities();
+
 	for (int n = 0; n < subSteps; ++n) {
+
+		sortEntities();
 
 		updateSprings();
 		updateEntities();
 		detectEntityBarrierCollision();
-		detectEntityEntityCollision();
+		wideSweep();
 	}
 	updateText();
 }
@@ -260,7 +311,7 @@ void Engine::updateSprings()
 		}
 		else {
 			it->update();
-			it->applyForces();
+			it->applyForces(timeStep);
 			it++;
 		}
 	}
@@ -307,21 +358,21 @@ const bool Engine::isWindowOpen() const
 Entity::Entity()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
+	oldPosition = currentPosition;
 	mass = 1;
-	size = 10.f;
+	size = 5.f;
 	body.setRadius(size);
 	color = sf::Color::White;
 	body.setFillColor(color);
 	resCoeff = 0.75f;
 
-	//Add a small random horizontal velocity
-	currentVelocity.x = static_cast<float>(rand() % 10);
 	force = { 0.f, 0.f };
 }
 
 Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
 {
 	currentPosition = inputPos;
+	oldPosition = currentPosition;
 	mass = inputMass;
 	size = inputSize;
 	body.setRadius(size);
@@ -331,8 +382,6 @@ Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 	centrePosition = currentPosition + sf::Vector2f(size, size);
 
-	//Add a small random horizontal velocity
-	currentVelocity.x = static_cast<float>(rand() % 10);
 	force = { 0.f, 0.f };
 	body.setRadius(size);
 }
@@ -431,17 +480,21 @@ void Spring::update()
 	centreOfMass = (entity1->mass * entity1->centrePosition + entity2->mass * entity2->centrePosition) / (entity1->mass + entity2->mass);
 }
 
-void Spring::applyForces()
+void Spring::applyForces(float dt)
 {
 	//Will first find where both entities should be a.k.a their rest positions
 	const sf::Vector2f v = entity2->centrePosition - entity1->centrePosition;
+
+	//Find the velocity of each entity from the positions
+	const sf::Vector2f entity1velocity = (entity1->currentPosition - entity1->oldPosition) / dt;
+	const sf::Vector2f entity2velocity = (entity2->currentPosition - entity2->oldPosition) / dt;
 
 	const sf::Vector2f e1RestPos = centreOfMass - (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e1RestDistance);
 	const sf::Vector2f e2RestPos = centreOfMass + (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e2RestDistance);
 
 	//Apply the restoring force to the entities
-	entity1->force += -springConstant * (entity1->centrePosition - e1RestPos) - dampingConstant * (entity1->currentVelocity - entity2->currentVelocity);
-	entity2->force += -springConstant * (entity2->centrePosition - e2RestPos) - dampingConstant * (entity2->currentVelocity - entity1->currentVelocity);
+	entity1->force += -springConstant * (entity1->centrePosition - e1RestPos) - dampingConstant * (entity1velocity - entity2velocity);
+	entity2->force += -springConstant * (entity2->centrePosition - e2RestPos) - dampingConstant * (entity2velocity - entity1velocity);
 }
 
 void Spring::render(sf::RenderWindow& target)

@@ -20,14 +20,14 @@ int main()
 		currentTime = newTime;
 
 		accumulator += frameTime;
-
+		
 		while (accumulator >= dt)
 		{
 			engine.update(dt);
 			accumulator -= dt;
 			t += dt;
 		}
-
+		
 		engine.render();
 	}
 }
