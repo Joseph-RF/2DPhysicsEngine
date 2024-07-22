@@ -1,7 +1,7 @@
 # 2DPhysicsEngine
 
 ## Description
-Hello! This is a simple 2D physics engine using No-Velocity Verlet Integration I created for fun one summer with an external library called SFML in order to easily handle visuals as well as input from the keyboard during the programme's runtime. The code allows you to simulate rigid spheres colliding with each other as well as pairs of these same spheres connected by springs.
+Hello, This is a simple 2D physics engine using No-Velocity Verlet Integration I created for fun one summer with an external library called SFML in order to easily handle visuals as well as input from the keyboard during the programme's runtime. The code allows you to simulate rigid spheres colliding with each other as well as pairs of these same spheres connected by springs.
 
 It is inspired by the work done by [johnBuffer](https://github.com/johnBuffer/VerletSFML) here on GitHub.
 
