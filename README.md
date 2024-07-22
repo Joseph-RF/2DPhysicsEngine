@@ -1,7 +1,7 @@
 # 2DPhysicsEngine
 
 ## Description
-Hello! This is a simple 2D physics engine I created for fun one summer with an external library called SFML in order to easily handle visuals as well as input from th keyboard during the programme's runtime. The code allows you to simulate rigid spheres colliding with each other as well as pairs of these same spheres connected by springs.
+Hello! This is a simple 2D physics engine using No-Velocity Verlet Integration I created for fun one summer with an external library called SFML in order to easily handle visuals as well as input from the keyboard during the programme's runtime. The code allows you to simulate rigid spheres colliding with each other as well as pairs of these same spheres connected by springs.
 
 It is inspired by the work done by [johnBuffer](https://github.com/johnBuffer/VerletSFML) here on GitHub.
 
@@ -28,6 +28,12 @@ They can be added to the scene by simply pressing "s" and "r" on the keyboard re
 
 The main interaction in this engine is the collision between entities which is governed by standard physics. The mechanics can be adjusted by changing the value for the coefficient of resitution.
 
-Latest addition is an object called "Sponge" composed of several entities interconnected by springs resulting in a soft-body-like object. For now it is just 5 entities and 8 springs. Below, an image of a "sponge"
+## Updates
+
+Added an object called "Sponge" composed of several entities interconnected by springs resulting in a soft-body-like object. For now it is just 5 entities and 8 springs. Below, an image of a "sponge"
 
 ![Image of a sponge](/README%20images/spongeEmptyScene.png)
+
+Massive changes done to the way the physics is computed to ensure a no-velocity verlet integration as this would provide stability to the simulation.
+
+Improved the simulation efficiency by subdividing the "box" increasing the number of entities that can be simulated by around 6x. 
