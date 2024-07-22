@@ -30,9 +30,13 @@ The main interaction in this engine is the collision between entities which is g
 
 ## Updates
 
+#### Entry 1
+
 Added an object called "Sponge" composed of several entities interconnected by springs resulting in a soft-body-like object. For now it is just 5 entities and 8 springs. Below, an image of a "sponge"
 
 ![Image of a sponge](/README%20images/spongeEmptyScene.png)
+
+#### Entry 2
 
 Massive changes done to the way the physics is computed to ensure a no-velocity verlet integration as this would provide stability to the simulation.
 
