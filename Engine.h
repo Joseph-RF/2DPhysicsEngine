@@ -16,6 +16,13 @@ extern int cell_size;
 extern int cell_number_x;
 extern int cell_number_y;
 
+extern sf::Vector2f lowerBarrier_position;
+extern sf::Vector2f upperBarrier_position;
+extern sf::Vector2f rightBarrier_position;
+extern sf::Vector2f leftBarrier_position;
+
+class Circle;
+
 class Entity
 {
 public:
@@ -26,19 +33,37 @@ public:
 	sf::Vector2f force;
 
 	float mass;
-	float size;
 	float resCoeff;
 
-	sf::CircleShape body;
 	sf::Color color;
 
-	Entity();
-	Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
-	~Entity();
+	virtual ~Entity() = default;
 
-	void updatePosition();
+	virtual void updatePosition() = 0;
+	virtual void entityBarrierCollision() = 0;
+	virtual void detectEntityCollision(Entity& e) = 0;
+	virtual void detectCircleCollision(Circle& c) = 0;
 
-	void renderEntity(sf::RenderWindow &target);
+	virtual void renderEntity(sf::RenderWindow& target) = 0;
+};
+
+class Circle : public Entity
+{
+public:
+	float size;
+
+	sf::CircleShape body;
+
+	Circle();
+	Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
+	~Circle();
+
+	void updatePosition() override;
+	void entityBarrierCollision() override;
+	void detectEntityCollision(Entity& e) override;
+	void detectCircleCollision(Circle& c) override;
+
+	void renderEntity(sf::RenderWindow& target) override;
 };
 
 class rectBarrier
@@ -125,7 +150,7 @@ public:
 	void initText();
 	void initScene();
 
-	void addEntities();
+	void addCircle();
 	void addSpring();
 	void addSponge();
 

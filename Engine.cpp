@@ -5,9 +5,14 @@ int windowHeight = 800;
 float f_windowWidth = 1200.f;
 float f_windowHeight = 800.f;
 
-int cell_size = 10;
+int cell_size = 20;
 int cell_number_x = windowWidth / cell_size;
 int cell_number_y = windowHeight / cell_size;
+
+extern sf::Vector2f lowerBarrier_position = { 0.f , f_windowHeight * 0.95f };
+extern sf::Vector2f upperBarrier_position = { 0.f, 0.f };
+extern sf::Vector2f rightBarrier_position = { f_windowWidth - 20.f ,0.f };
+extern sf::Vector2f leftBarrier_position = { 0.f, 0.f };
 
 Engine::Engine()
 {
@@ -60,9 +65,16 @@ void Engine::initText()
 void Engine::initScene()
 {
 	upperBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, 0));
+	sf::Vector2f upperBarrier_position = { 0.f ,0.f };
+
 	rightBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(f_windowWidth - 20, 0));
+	sf::Vector2f rightBarrier_position = { f_windowWidth - 20.f ,0.f };
+
 	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.95f));
+	sf::Vector2f lowerBarrier_position = { 0.f , f_windowHeight * 0.95f };
+
 	leftBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, 0));
+	sf::Vector2f leftBarrier_position = { 0.f , 0.f };
 }
 
 void Engine::initWindow()
@@ -71,27 +83,27 @@ void Engine::initWindow()
 	window->setFramerateLimit(0);
 }
 
-void Engine::addEntities()
+void Engine::addCircle()
 {
-	Entities.emplace_back(new Entity(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 5.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
 void Engine::addSpring()
 {
-	addEntities();
-	addEntities();
+	addCircle();
+	addCircle();
 
 	Springs.emplace_back(Spring(Entities[Entities.size() - 2], Entities[Entities.size() - 1], 10.f, 0.2f, 300.f));
 }
 
 void Engine::addSponge()
 {
-	Entities.emplace_back(new Entity(sf::Vector2f(50.f, 50.f), 1.f, 10.f, sf::Color::Green));
-	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 50.f), 1.f, 10.f, sf::Color::Green));
-	Entities.emplace_back(new Entity(sf::Vector2f(50.f, 120.f), 1.f, 10.f, sf::Color::Green));
-	Entities.emplace_back(new Entity(sf::Vector2f(120.f, 120.f), 1.f, 10.f, sf::Color::Green));
-	Entities.emplace_back(new Entity(sf::Vector2f(85.f, 85.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(50.f, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(120.f, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(50.f, 120.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(120.f, 120.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(85.f, 85.f), 1.f, 10.f, sf::Color::Green));
 
 	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 5], 500.f, 1.f, 49.5f));
 	Springs.emplace_back(Spring(Entities[Entities.size() - 1], Entities[Entities.size() - 4], 500.f, 1.f, 49.5f));
@@ -115,7 +127,7 @@ void Engine::pollEvents()
 			if (e.key.code == sf::Keyboard::Escape) {
 				window->close();
 			} else if (e.key.code == sf::Keyboard::S) {
-				addEntities();
+				addCircle();
 			} else if (e.key.code == sf::Keyboard::R) {
 				addSpring();
 			} else if (e.key.code == sf::Keyboard::T) {
@@ -146,6 +158,7 @@ void Engine::solver(Entity& E, float dt)
 	E.currentPosition += displacement + (E.currentAcceleration * dt * dt);
 
 	E.force = { 0.f, 0.f };
+	//std::cout << "Position: " << E.currentPosition.x << " , " << E.currentPosition.y<<std::endl;
 }
 
 inline void Engine::applyGravity(Entity& E)
@@ -157,42 +170,9 @@ inline void Engine::applyGravity(Entity& E)
 void Engine::detectEntityBarrierCollision()
 {
 	size_t entityNumber = Entities.size();
-	for (size_t i = 0; i < entityNumber; i++) {
+	for (size_t i = 0; i < entityNumber; ++i) {
 
-		Entity& entity = *Entities[i];
-
-		const sf::Vector2f displacement = entity.currentPosition - entity.oldPosition;
-
-		if (entity.currentPosition.y > lowerBarrier.position.y - (2 * entity.size)) {
-			//Move the entity to the very edge where it would be acceptable for it to be in
-
-			entity.currentPosition.y = lowerBarrier.position.y - (2 * entity.size);
-
-			//Change the old position such that the entitiy receieves the right impulse. Term in brackets accounts for the coefficient 
-			// of restitution since displacement is a stand-in for velocity.
-			entity.oldPosition.y = entity.currentPosition.y + (entity.resCoeff * displacement.y);
-		}
-
-		if (entity.currentPosition.x > rightBarrier.position.x - (2 * entity.size)) {
-
-			entity.currentPosition.x = rightBarrier.position.x - (2 * entity.size);
-
-			entity.oldPosition.x = entity.currentPosition.x + (entity.resCoeff * displacement.x);
-		}
-
-		if (entity.currentPosition.y < upperBarrier.position.y + 20) {
-
-			entity.currentPosition.y = upperBarrier.position.y + 20;
-
-			entity.oldPosition.y = entity.currentPosition.y + (entity.resCoeff * displacement.y);
-		}
-
-		if (entity.currentPosition.x < upperBarrier.position.x + 20) {
-
-			entity.currentPosition.x = upperBarrier.position.x + 20;
-
-			entity.oldPosition.x = entity.currentPosition.x + (entity.resCoeff * displacement.x);
-		}
+		Entities[i]->entityBarrierCollision();
 	}
 }
 
@@ -226,21 +206,7 @@ void Engine::detectEntityEntityCollision(int grid_cell, Entity* E)
 			break;
 		}
 
-		sf::Vector2f separation = grid[grid_cell][k]->currentPosition - E->currentPosition;
-		float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
-
-		if (separation_magnitude < E->size + grid[grid_cell][k]->size) {
-
-			//Resolve collision between the entities
-			sf::Vector2f norm = separation / separation_magnitude;
-
-			norm = sf::Vector2f(0.5 * (E->size + grid[grid_cell][k]->size - separation_magnitude) * norm.x,
-				0.5 * (E->size + grid[grid_cell][k]->size - separation_magnitude) * norm.y);
-
-			E->currentPosition -= E->resCoeff * norm;
-
-			grid[grid_cell][k]->currentPosition += E->resCoeff * norm;
-		}
+		E->detectEntityCollision(*grid[grid_cell][k]);
 	}
 }
 
@@ -269,7 +235,7 @@ void Engine::update(float dt)
 	framerate = 1.f / clock.getElapsedTime().asSeconds();
 	clock.restart();
 
-	addEntities();
+	//addCircle();
 
 	for (int n = 0; n < subSteps; ++n) {
 
@@ -355,7 +321,7 @@ const bool Engine::isWindowOpen() const
 	}
 }
 
-Entity::Entity()
+Circle::Circle()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
 	oldPosition = currentPosition;
@@ -369,7 +335,7 @@ Entity::Entity()
 	force = { 0.f, 0.f };
 }
 
-Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
+Circle::Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
 {
 	currentPosition = inputPos;
 	oldPosition = currentPosition;
@@ -386,18 +352,80 @@ Entity::Entity(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	body.setRadius(size);
 }
 
-Entity::~Entity()
+Circle::~Circle()
 {
 
 }
 
-void Entity::updatePosition()
+void Circle::updatePosition()
 {
 	body.setPosition(currentPosition);
 	centrePosition = currentPosition + sf::Vector2f(size, size);
 }
 
-void Entity::renderEntity(sf::RenderWindow& target)
+void Circle::entityBarrierCollision()
+{
+	const sf::Vector2f displacement = this->currentPosition - this->oldPosition;
+
+	if (this->currentPosition.y > lowerBarrier_position.y - (2 * this->size)) {
+		//Move the entity to the very edge where it would be acceptable for it to be in
+
+		this->currentPosition.y = lowerBarrier_position.y - (2 * this->size);
+
+		//Change the old position such that the entitiy receieves the right impulse. Term in brackets accounts for the coefficient 
+		// of restitution since displacement is a stand-in for velocity.
+		this->oldPosition.y = this->currentPosition.y + (this->resCoeff * displacement.y);
+	}
+
+	if (this->currentPosition.x > rightBarrier_position.x - (2 * this->size)) {
+
+		this->currentPosition.x = rightBarrier_position.x - (2 * this->size);
+
+		this->oldPosition.x = this->currentPosition.x + (this->resCoeff * displacement.x);
+	}
+
+	if (this->currentPosition.y < upperBarrier_position.y + 20) {
+
+		this->currentPosition.y = upperBarrier_position.y + 20;
+
+		this->oldPosition.y = this->currentPosition.y + (this->resCoeff * displacement.y);
+	}
+
+	if (this->currentPosition.x < upperBarrier_position.x + 20) {
+
+		this->currentPosition.x = upperBarrier_position.x + 20;
+
+		this->oldPosition.x = this->currentPosition.x + (this->resCoeff * displacement.x);
+	}
+}
+
+void Circle::detectEntityCollision(Entity& e)
+{
+	e.detectCircleCollision(*this);
+}
+
+void Circle::detectCircleCollision(Circle& c)
+{
+	//std::cout << "This is being executed" << std::endl;
+	//grid = e, E = this
+	sf::Vector2f separation = c.currentPosition - this->currentPosition;
+	float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
+
+	if (separation_magnitude < this->size + c.size) {
+
+		//Resolve collision between the entities
+		sf::Vector2f norm = separation / separation_magnitude;
+
+		norm = sf::Vector2f(0.5 * (this->size + c.size - separation_magnitude) * norm.x,
+			0.5 * (this->size + c.size - separation_magnitude) * norm.y);
+
+		this->currentPosition -= this->resCoeff * norm;
+
+		c.currentPosition += this->resCoeff * norm;
+	}
+}
+
+void Circle::renderEntity(sf::RenderWindow& target)
 {
 	target.draw(body);
 }
