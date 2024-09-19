@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cmath>
 #include <memory>
+#include <limits>
 
 extern int windowWidth;
 extern int windowHeight;
@@ -22,13 +23,13 @@ extern sf::Vector2f rightBarrier_position;
 extern sf::Vector2f leftBarrier_position;
 
 class Circle;
+class Square;
 
 class Entity
 {
 public:
 	sf::Vector2f currentPosition;
 	sf::Vector2f oldPosition;
-	sf::Vector2f centrePosition;
 	sf::Vector2f currentAcceleration;
 	sf::Vector2f force;
 
@@ -43,6 +44,7 @@ public:
 	virtual void entityBarrierCollision() = 0;
 	virtual void detectEntityCollision(Entity& e) = 0;
 	virtual void detectCircleCollision(Circle& c) = 0;
+	virtual void detectSquareCollision(Square& s) = 0;
 
 	virtual void renderEntity(sf::RenderWindow& target) = 0;
 };
@@ -62,10 +64,37 @@ public:
 	void entityBarrierCollision() override;
 	void detectEntityCollision(Entity& e) override;
 	void detectCircleCollision(Circle& c) override;
+	void detectSquareCollision(Square& s) override;
 
 	void renderEntity(sf::RenderWindow& target) override;
 };
 
+class ConvexPolygon : public Entity
+{
+public:
+	sf::ConvexShape body;
+	virtual sf::Vector2f getVertexPosition(int vertex) = 0;
+};
+
+class Square : public ConvexPolygon
+{
+public:
+	float size;
+
+	Square();
+	Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
+	~Square();
+
+	void updatePosition() override;
+	void entityBarrierCollision() override;
+	void detectEntityCollision(Entity& e) override;
+	void detectCircleCollision(Circle& c) override;
+	void detectSquareCollision(Square& s) override;
+
+	sf::Vector2f getVertexPosition(int vertex) override;
+
+	void renderEntity(sf::RenderWindow& target) override;
+};
 class rectBarrier
 {
 public:
@@ -151,6 +180,7 @@ public:
 	void initScene();
 
 	void addCircle();
+	void addSquare();
 	void addSpring();
 	void addSponge();
 
@@ -163,13 +193,22 @@ public:
 	void sortEntities();
 	int getCellNumber(sf::Vector2f pos);
 
+	static void circlePolygonCollision(Circle& c, ConvexPolygon& convexPolygon);
+	static void circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, float depth, sf::Vector2f axis);
+	static sf::Vector2f closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, sf::Vector2f& b);
+	static void polygonPolygonCollision(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2);
+	static void polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float depth, sf::Vector2f axis);
+	//static void polygonPolygonCollision(std::vector<sf::Vector2f>& vertices1, std::vector<sf::Vector2f>& vertices2);
+	static float dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2);
+	static sf::Vector2f normalise(const sf::Vector2f& v);
+	static float findDistance(const sf::Vector2f& v1, const sf::Vector2f& v2);
+
 	void update(float dt);
 	void updateEntities();
 	void updateSprings();
 	void updateText();
 
 	void render();
-
 
 	const bool isWindowOpen() const;
 };
