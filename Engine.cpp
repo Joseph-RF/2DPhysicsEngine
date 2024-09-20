@@ -166,7 +166,6 @@ void Engine::solver(Entity& E, float dt)
 	E.currentPosition += displacement + (E.currentAcceleration * dt * dt);
 
 	E.force = { 0.f, 0.f };
-	//std::cout << "Position: " << E.currentPosition.x << " , " << E.currentPosition.y<<std::endl;
 }
 
 inline void Engine::applyGravity(Entity& E)
@@ -234,57 +233,47 @@ int Engine::getCellNumber(sf::Vector2f pos)
 	return ((std::floor(pos.x / cell_size)) + std::floor(pos.y / cell_size) * cell_number_x);
 }
 
-void Engine::circlePolygonCollision(Circle& c, ConvexPolygon& convexPolygon)
+void Engine::circleCircleDetection(Circle& c1, Circle& c2)
 {
-	/*
-	sf::Vector2f circlePosition = c.currentPosition;
-	sf::Vector2f pointOfContact;
-	float minimumDistance = std::numeric_limits<float>::max();
+	//c becomes c2, this becomes c1.
+	sf::Vector2f separation = c2.currentPosition - c1.currentPosition;
+	float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
 
-	int polygonVertexCount = convexPolygon.body.getPointCount();
-
-	for (int i = 0; i < polygonVertexCount; ++i) {
-		sf::Vector2f vertex1Position = convexPolygon.body.getPoint(i) + convexPolygon.currentPosition;
-		sf::Vector2f vertex2Position = convexPolygon.body.getPoint((i + 1) % polygonVertexCount) + convexPolygon.currentPosition;
-
-		sf::Vector2f closestPoint = Engine::closestPointOnSegmentToCircle(c, vertex1Position, vertex2Position);
-		float distance = Engine::findDistance(c.currentPosition, closestPoint);
-
-		if (distance < minimumDistance) {
-			minimumDistance = distance;
-			pointOfContact = closestPoint;
-		}
+	if (separation_magnitude < c1.size + c2.size) {
+		circleCircleResolution(c1, c2, separation_magnitude, (separation / separation_magnitude));
 	}
+}
 
-	if (minimumDistance > c.size) {
-		//Not touching
-		//std::cout << "not touching" << std::endl;
+void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis)
+{
+	//Resolve collision between the circles
+	const sf::Vector2f vel_c = c2.currentPosition - c2.oldPosition;
+	const sf::Vector2f vel_this = c1.currentPosition - c1.oldPosition;
+
+	const float norm_vel_relative = Engine::dotProduct(vel_c - vel_this, axis);
+
+	if (norm_vel_relative > 0) {
 		return;
 	}
 
-	float penetrationDepth = c.size - minimumDistance;
-	sf::Vector2f normal = { (c.currentPosition.x - pointOfContact.x) / minimumDistance, (c.currentPosition.y - pointOfContact.y) / minimumDistance };
+	sf::Vector2f overLapCorrection = 0.5f * (c1.size + c2.size - depth) * axis;
 
-	std::cout << penetrationDepth << std::endl;
+	c1.currentPosition -= overLapCorrection;
+	c2.currentPosition += overLapCorrection;
 
-	//Check the normal is facing in the correct direction
-	if (dotProduct(convexPolygon.currentPosition - c.currentPosition, normal) < 0.f) {
-		normal = -normal;
-	}
+	float j = -(1 + (c1.resCoeff > c2.resCoeff ? c1.resCoeff : c2.resCoeff)) 
+				* norm_vel_relative / ((1 / c1.mass) + (1 / c2.mass));
 
-	circlePolygonResolution(c, convexPolygon, penetrationDepth + 0.001, normal);
+	c1.oldPosition += ((j / (1 / c1.mass)) * axis - overLapCorrection);
+	c2.oldPosition -= ((j / (1 / c2.mass)) * axis - overLapCorrection);
+}
 
-	*/
-
-
-
-	
+void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
+{	
 	//SAT implementation to find out whether a polygon and a circle have collided
 	//Draw an axis which is the normal of the polygon.
 	//Project every vertex onto that axis and two points on the circle.
 	//If there is any gap, the polygons are NOT touching
-
-	//TODO: Tidy this up.
 
 	//Define normal and depth. These will be the axis and depth associated with the smallest 
 	//displacement possible in order to push the two objects aside.
@@ -301,7 +290,6 @@ void Engine::circlePolygonCollision(Circle& c, ConvexPolygon& convexPolygon)
 
 		sf::Vector2f vertex1Position = convexPolygon.getVertexPosition(i);
 		sf::Vector2f vertex2Position = convexPolygon.getVertexPosition((i + 1) % polygonVertexCount);
-		//std::cout << convexPolygon.body.getPoint(i).x << " " << convexPolygon.body.getPoint(i).y << std::endl;
 
 		axis = sf::Vector2f(vertex2Position.y - vertex1Position.y, -(vertex2Position.x - vertex1Position.x));
 		axis = Engine::normalise(axis);
@@ -426,149 +414,7 @@ void Engine::circlePolygonCollision(Circle& c, ConvexPolygon& convexPolygon)
 	if (dotProduct(convexPolygon.currentPosition - c.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
-	//std::cout << minimumDepth << std::endl;
 	circlePolygonResolution(c, convexPolygon, minimumDepth, minimumAxis);
-
-
-	/*
-	sf::Vector2f normal;
-	float depth = std::numeric_limits<float>::max();
-
-	int polygonVertexCount = convexPolygon.body.getPointCount();
-	sf::Vector2f polygonPosition = convexPolygon.currentPosition;
-
-	for (int i = 0; i < polygonVertexCount; ++i) {
-
-		sf::Vector2f vertex1 = convexPolygon.body.getPoint(i) + polygonPosition;
-		sf::Vector2f vertex2 = convexPolygon.body.getPoint((i + 1) % polygonVertexCount) + polygonPosition;
-
-		sf::Vector2f edge = vertex2 - vertex1;
-		sf::Vector2f axis = { edge.y, -edge.x };
-		//Normalise axis
-		axis = normalise(axis);
-
-		//Now project every vertex onto this axis, keeping track of the minimum and the maximum for each polygon.
-		float min1 = std::numeric_limits<float>::max();
-		float max1 = std::numeric_limits<float>::min();
-
-		float min2 = min1;
-		float max2 = max1;
-
-		//Projecting the polygon onto the current axis.
-		for (int j = 0; j < polygonVertexCount; ++j) {
-			float projection = dotProduct(convexPolygon.body.getPoint(j) + polygonPosition, axis);
-
-			if (projection < min1) { min1 = projection; }
-			if (projection > max1) { max1 = projection; }
-		}
-		//Projecting the circle onto the current axis.
-		sf::Vector2f point1 = c.currentPosition + axis * c.size;
-		sf::Vector2f point2 = c.currentPosition - axis * c.size;
-		
-		min2 = dotProduct(point1, axis);
-		max2 = dotProduct(point2, axis);
-
-		if (min2 > max2) {
-			float temp = min2;
-			min2 = max2;
-			max2 = temp;
-			
-		}
-
-		//Check for overlap in the projections.
-		if (min1 >= max2 || min2 >= max1) {
-			return;
-		}
-
-		//Objects are touching
-		//Define axisDepth, the depth projected onto the current axis. There may be more than one and possibly
-		//smaller therefore need to check and keep the smallest value in depth.
-		float axisDepth;
-		if ((max2 - min1) < (max1 - min2)) { axisDepth = max2 - min1; }
-		else { axisDepth = max1 - min2; }
-
-		//std::cout << "axis depth: " << axisDepth << std::endl;
-
-		if (axisDepth < depth) {
-			//std::cout << "executed" << std::endl;
-			depth = axisDepth;
-			normal = axis;
-		}
-	}
-
-	//Repeat for the circle
-	//Find the polygon vertex position closest to the circle
-	sf::Vector2f closestPoint;
-	float minDistance = std::numeric_limits<float>::max();
-	for (int i = 0; i < polygonVertexCount; ++i) {
-		sf::Vector2f vertex = convexPolygon.body.getPoint(i) + polygonPosition;
-		float distance = Engine::findDistance(vertex, c.currentPosition);
-
-		if (distance < minDistance) {
-			minDistance = distance;
-			closestPoint = vertex;
-		}
-	}
-
-	//Find new axis to test against
-	sf::Vector2f axis = normalise(closestPoint - c.currentPosition);
-
-	//Project onto the axis
-	float min1 = std::numeric_limits<float>::max();
-	float max1 = std::numeric_limits<float>::min();
-
-	float min2 = min1;
-	float max2 = max1;
-
-	//Project the polygon
-	for (int j = 0; j < polygonVertexCount; ++j) {
-		float projection = dotProduct(convexPolygon.body.getPoint(j) + polygonPosition, axis);
-
-		if (projection < min1) { min1 = projection; }
-		if (projection > max1) { max1 = projection; }
-	}
-
-	//Project the circle
-	sf::Vector2f point1 = c.currentPosition + axis * c.size;
-	sf::Vector2f point2 = c.currentPosition - axis * c.size;
-
-	min2 = dotProduct(point1, axis);
-	max2 = dotProduct(point2, axis);
-
-	if (min2 > max2) {
-		float temp = min2;
-		min2 = max2;
-		max2 = temp;
-	}
-
-	//Check for overlap in the projections.
-	if (min1 >= max2 || min2 >= max1) {
-		return;
-	}
-
-	//Objects are touching
-	//Define axisDepth, the depth projected onto the current axis. There may be more than one and possibly
-	//smaller therefore need to check and keep the smallest value in depth.
-	float axisDepth;
-	if ((max2 - min1) < (max1 - min2)) { axisDepth = max2 - min1; }
-	else { axisDepth = max1 - min2; }
-
-	//std::cout << "axis depth: " << axisDepth << std::endl;
-
-	if (axisDepth < depth) {
-		//std::cout << "executed" << std::endl;
-		depth = axisDepth;
-		normal = axis;
-	}
-
-	//Check to see if the normal is facing in the correct direction for the two polygons.
-	if (dotProduct(polygonPosition - c.currentPosition, normal) < 0.f) {
-		normal = -normal;
-	}
-
-	//std::cout << "Depth: " << depth << " Normal: " << normal.x << " , " << normal.y << std::endl;
-	circlePolygonResolution(c, convexPolygon, depth, normal);
-	*/
 }
 
 void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, float depth, sf::Vector2f axis)
@@ -579,14 +425,15 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, fl
 
 	float normRelativeVelocity = Engine::dotProduct(polygonVelocity - circleVelocity, axis);
 
-	//Are the polygons moving away from each other? If so, don't do anything.
+	//Are the shapes moving away from each other? If so, don't do anything.
 	if (normRelativeVelocity > 0) {
 		return;
 	}
 
-	float j = -(1 + c.resCoeff) * normRelativeVelocity / ((1 / c.mass) + (1 / convexPolygon.mass));
+	float j = -(1 + (c.resCoeff > convexPolygon.resCoeff ? c.resCoeff : convexPolygon.resCoeff))
+				* normRelativeVelocity / ((1 / c.mass) + (1 / convexPolygon.mass));
 
-	//Separate the two polygons. It should be noted axis MUST be normalised here.
+	//Separate the two shapes. It should be noted axis MUST be normalised here.
 	c.currentPosition -= (0.5f * depth * axis);
 	convexPolygon.currentPosition += (0.5f * depth * axis);
 
@@ -621,20 +468,30 @@ sf::Vector2f Engine::closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, s
 	}
 }
 
-void Engine::polygonPolygonCollision(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2)
-{
-	//SAT implementation to find out whether two polygons have collided
-	//Draw an axis which is the normal of a polygon.
-	//Project every vertex onto that axis.
-	//If there is any gap, the polygons are NOT touching
-
-	//TODO: Tidy this up.
-
-	//Define normal and depth. These will be the axis and depth associated with the smallest 
-	//displacement possible in order to push the two objects aside.
-
+void Engine::polygonPolygonDetection(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2)
+{	
 	float minimumDepth = std::numeric_limits<float>::max();
 	sf::Vector2f minimumAxis;
+	
+	if ((projectionSAT(convexPolygon1, convexPolygon2, minimumDepth, minimumAxis)) ||
+		(projectionSAT(convexPolygon2, convexPolygon1, minimumDepth, minimumAxis))) {
+		return;
+	}
+
+	//Polygons are colliding and the minimum distance in order to separate the two has been found.
+
+	//Check the normal is facing in the correct direction
+	if (dotProduct(convexPolygon2.currentPosition - convexPolygon1.currentPosition, minimumAxis) < 0.f) {
+		minimumAxis = -minimumAxis;
+	}
+
+	polygonPolygonResolution(convexPolygon1, convexPolygon2, minimumDepth, minimumAxis);
+}
+
+bool Engine::projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float& minDepth, sf::Vector2f& minAxis)
+{
+	//SAT implementation to find out whether two polygons have collided
+	//Similar to circle-polygon collision detection
 
 	int polygon1VertexCount = convexPolygon1.body.getPointCount();
 	int polygon2VertexCount = convexPolygon2.body.getPointCount();
@@ -682,67 +539,7 @@ void Engine::polygonPolygonCollision(ConvexPolygon& convexPolygon1, ConvexPolygo
 
 		if (max1 < min2 || max2 < min1) {
 			//Not colliding.
-			return;
-		}
-		//Projections are overlapping
-		if (max1 - min2 < max2 - min1) {
-			depth = max1 - min2;
-		}
-		else {
-			depth = max2 - min1;
-		}
-		
-		if (depth < minimumDepth) {
-			minimumDepth = depth;
-			minimumAxis = axis;
-		}
-	}
-
-
-	for (int i = 0; i < polygon2VertexCount; ++i) {
-
-		sf::Vector2f axis;
-		float depth;
-
-		sf::Vector2f vertex1Position = convexPolygon2.getVertexPosition(i);
-		sf::Vector2f vertex2Position = convexPolygon2.getVertexPosition((i + 1) % polygon2VertexCount);
-
-		axis = sf::Vector2f(vertex2Position.y - vertex1Position.y, -(vertex2Position.x - vertex1Position.x));
-		axis = Engine::normalise(axis);
-
-		//Project all the vertices of both polygons onto the axis. Find the max and min for both polygons
-		float max1 = std::numeric_limits<float>::min();
-		float min1 = std::numeric_limits<float>::max();
-
-		float max2 = max1;
-		float min2 = min1;
-
-		for (int j = 0; j < polygon1VertexCount; ++j) {
-			sf::Vector2f vertexPosition = convexPolygon1.getVertexPosition(j);
-			float projection = Engine::dotProduct(vertexPosition, axis);
-
-			if (projection > max1) {
-				max1 = projection;
-			}
-			if (projection < min1) {
-				min1 = projection;
-			}
-		}
-		for (int j = 0; j < polygon2VertexCount; ++j) {
-			sf::Vector2f vertexPosition = convexPolygon2.getVertexPosition(j);
-			float projection = Engine::dotProduct(vertexPosition, axis);
-
-			if (projection > max2) {
-				max2 = projection;
-			}
-			if (projection < min2) {
-				min2 = projection;
-			}
-		}
-
-		if (max1 < min2 || max2 < min1) {
-			//Not colliding.
-			return;
+			return true;
 		}
 		//Projections are overlapping
 		if (max1 - min2 < max2 - min1) {
@@ -752,134 +549,12 @@ void Engine::polygonPolygonCollision(ConvexPolygon& convexPolygon1, ConvexPolygo
 			depth = max2 - min1;
 		}
 
-		if (depth < minimumDepth) {
-			minimumDepth = depth;
-			minimumAxis = axis;
+		if (depth < minDepth) {
+			minDepth = depth;
+			minAxis = axis;
 		}
 	}
-
-	//Polygons are colliding and the minimum distance in order to separate the two has been found.
-
-	//Check the normal is facing in the correct direction
-	if (dotProduct(convexPolygon2.currentPosition - convexPolygon1.currentPosition, minimumAxis) < 0.f) {
-		minimumAxis = -minimumAxis;
-	}
-	//std::cout << "Touching" << std::endl;
-	polygonPolygonResolution(convexPolygon1, convexPolygon2, minimumDepth, minimumAxis);
-
-
-	/*
-	sf::Vector2f normal;
-	float depth = std::numeric_limits<float>::max();
-
-	int polygon1VertexCount = convexPolygon1.body.getPointCount();
-	int polygon2VertexCount = convexPolygon2.body.getPointCount();
-	sf::Vector2f polygon1Position = convexPolygon1.currentPosition;
-	sf::Vector2f polygon2Position = convexPolygon2.currentPosition;
-
-
-	for (int i = 0; i < polygon1VertexCount; ++i) {
-
-		sf::Vector2f vertex1 = convexPolygon1.body.getPoint(i) + polygon1Position;
-		sf::Vector2f vertex2 = convexPolygon1.body.getPoint((i + 1) % polygon1VertexCount) + polygon1Position;
-
-		sf::Vector2f edge = vertex2 - vertex1;
-		sf::Vector2f axis = { edge.y, -edge.x };
-		//Normalise axis
-		axis = normalise(axis);
-
-		//Now project every vertex onto this axis, keeping track of the minimum and the maximum for each polygon.
-		float min1 = std::numeric_limits<float>::max();
-		float max1 = std::numeric_limits<float>::min();
-
-		float min2 = min1;
-		float max2 = max1;
-
-		for (int j = 0; j < polygon1VertexCount; ++j) {
-			float projection = dotProduct(convexPolygon1.body.getPoint(j) + polygon1Position, axis);
-
-			if (projection < min1) { min1 = projection; }
-			if (projection > max1) { max1 = projection; }
-		}
-		for (int j = 0; j < polygon2VertexCount; ++j) {
-			float projection = dotProduct(convexPolygon2.body.getPoint(j) + polygon2Position, axis);
-
-			if (projection < min2) { min2 = projection; }
-			if (projection > max2) { max2 = projection; }
-		}
-
-		if (min1 >= max2 || min2 >= max1) {
-			return;
-		}
-		
-		//Objects are touching
-		//Define axisDepth, the depth projected onto the current axis. There may be more than one and possibly
-		//smaller therefore need to check and keep the smallest value in depth.
-		float axisDepth;
-		if ((max2 - min1) < (max1 - min2)) { axisDepth = max2 - min1; }
-		else { axisDepth = max1 - min2; }
-
-		//std::cout << "axis depth: " << axisDepth << std::endl;
-
-		if (axisDepth < depth) {
-			//std::cout << "executed" << std::endl;
-			depth = axisDepth;
-			normal = axis;
-		}
-	}
-
-	//Repeat for convexPolygon2
-	for (int i = 0; i < polygon2VertexCount; ++i) {
-
-		sf::Vector2f vertex1 = convexPolygon2.body.getPoint(i) + polygon2Position;
-		sf::Vector2f vertex2 = convexPolygon2.body.getPoint((i + 1) % polygon2VertexCount) + polygon2Position;
-
-		sf::Vector2f edge = vertex2 - vertex1;
-		sf::Vector2f axis = { edge.y, -edge.x };
-
-		//Now project every vertex onto this axis, keeping track of the minimum and the maximum for each polygon.
-		float min1 = std::numeric_limits<float>::max();
-		float max1 = std::numeric_limits<float>::min();
-
-		float min2 = min1;
-		float max2 = max1;
-
-		for (int j = 0; j < polygon1VertexCount; ++j) {
-			float projection = dotProduct(convexPolygon1.body.getPoint(j) + polygon1Position, axis);
-
-			if (projection < min1) { min1 = projection; }
-			if (projection > max1) { max1 = projection; }
-		}
-		for (int j = 0; j < polygon2VertexCount; ++j) {
-			float projection = dotProduct(convexPolygon2.body.getPoint(j) + polygon2Position, axis);
-
-			if (projection < min2) { min2 = projection; }
-			if (projection > max2) { max2 = projection; }
-		}
-
-		if (min1 >= max2 || min2 >= max1) {
-			return;
-		}
-
-		float axisDepth;
-		if ((max2 - min1) < (max1 - min2)) { axisDepth = max2 - min1; }
-		else { axisDepth = max1 - min2; }
-
-		if (axisDepth < depth) {
-			//std::cout << "executed" << std::endl;
-			depth = axisDepth;
-			normal = axis;
-		}
-	}
-
-	//Check to see if the normal is facing in the correct direction for the two polygons.
-	if (dotProduct(convexPolygon2.currentPosition - convexPolygon1.currentPosition, normal) < 0.f) {
-		normal = -normal;
-	}
-	
-	//std::cout << "Depth: " << depth << " Normal: " << normal.x << " , " << normal.y << std::endl;
-	polygonPolygonResolution(convexPolygon1, convexPolygon2, depth, normal);
-	*/
+	return false;
 }
 
 void Engine::polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float depth, sf::Vector2f axis)
@@ -895,7 +570,8 @@ void Engine::polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolyg
 		return;
 	}
 
-	float j = -(1 + convexPolygon1.resCoeff) * normRelativeVelocity / ((1 / convexPolygon1.mass) + (1 / convexPolygon2.mass));
+	float j = -(1 + (convexPolygon1.resCoeff > convexPolygon2.resCoeff ? convexPolygon1.resCoeff : convexPolygon2.resCoeff))
+		* normRelativeVelocity / ((1 / convexPolygon1.mass) + (1 / convexPolygon2.mass));
 
 	//Separate the two polygons. It should be noted axis MUST be normalised here.
 	convexPolygon1.currentPosition -= (0.5f * depth * axis);
@@ -1101,58 +777,12 @@ void Circle::detectEntityCollision(Entity& e)
 
 void Circle::detectCircleCollision(Circle& c)
 {
-	//std::cout << "This is being executed" << std::endl;
-	//grid = e, E = this
-
-	/*
-	sf::Vector2f separation = c.currentPosition - this->currentPosition;
-	float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
-
-	if (separation_magnitude < this->size + c.size) {
-
-		//Resolve collision between the entities
-		sf::Vector2f norm = separation / separation_magnitude;
-
-		norm = sf::Vector2f(0.5 * (this->size + c.size - separation_magnitude) * norm.x,
-			0.5 * (this->size + c.size - separation_magnitude) * norm.y);
-
-		this->currentPosition -= this->resCoeff * norm;
-
-		c.currentPosition += this->resCoeff * norm;
-	}
-	*/
-	sf::Vector2f separation = c.currentPosition - this->currentPosition;
-	float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
-
-	if (separation_magnitude < this->size + c.size) {
-
-		//Resolve collision between the circles
-		const sf::Vector2f norm = separation / separation_magnitude;
-
-		const sf::Vector2f vel_c = c.currentPosition - c.oldPosition;
-		const sf::Vector2f vel_this = this->currentPosition - this->oldPosition;
-
-		const float norm_vel_relative = Engine::dotProduct(vel_c - vel_this, norm);
-
-		if (norm_vel_relative > 0) {
-			return;
-		}
-
-		sf::Vector2f overLapCorrection = 0.5f * (this->size + c.size - separation_magnitude) * norm;
-
-		this->currentPosition -= overLapCorrection;
-		c.currentPosition += overLapCorrection;
-
-		float j = -(1 + this->resCoeff) * norm_vel_relative / ((1 / this->mass) + (1 / c.mass));
-
-		this->oldPosition += ((j / (1 / this->mass)) * norm - overLapCorrection);
-		c.oldPosition -= ((j / (1 / c.mass)) * norm - overLapCorrection);
-	}
+	Engine::circleCircleDetection(*this, c);
 }
 
 void Circle::detectSquareCollision(Square& s)
 {
-	Engine::circlePolygonCollision(*this, s);
+	Engine::circlePolygonDetection(*this, s);
 }
 
 void Circle::renderEntity(sf::RenderWindow& target)
@@ -1168,10 +798,10 @@ Square::Square()
 	size = 10.f;
 
 	body.setPointCount(4);
-	body.setPoint(0, { 0.f, 0.f });
-	body.setPoint(1, sf::Vector2f(size, 0.f));
-	body.setPoint(2, sf::Vector2f(size, size));
-	body.setPoint(3, sf::Vector2f(0.f, size));
+	body.setPoint(0, { -(size / 2.f), -(size / 2.f) });
+	body.setPoint(1, { (size / 2.f), -(size / 2.f) });
+	body.setPoint(2, { (size / 2.f), (size / 2.f) });
+	body.setPoint(3, { -(size / 2.f), (size / 2.f) });
 
 	color = sf::Color::Green;
 	body.setFillColor(color);
@@ -1195,15 +825,6 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	body.setPoint(1, { (size / 2.f), -(size / 2.f) });
 	body.setPoint(2, { (size / 2.f), (size / 2.f) });
 	body.setPoint(3, { -(size / 2.f), (size / 2.f) });
-	
-
-	/*
-	body.setPointCount(4);
-	body.setPoint(0, { 0.f, 0.f });
-	body.setPoint(1, sf::Vector2f(size, 0.f));
-	body.setPoint(2, sf::Vector2f(size, size));
-	body.setPoint(3, sf::Vector2f(0.f, size));
-	*/
 
 	color = inputColor;
 	body.setFillColor(color);
@@ -1265,12 +886,12 @@ void Square::detectEntityCollision(Entity& e)
 
 void Square::detectCircleCollision(Circle& c)
 {
-	Engine::circlePolygonCollision(c, *this);
+	Engine::circlePolygonDetection(c, *this);
 }
 
 void Square::detectSquareCollision(Square& s)
 {
-	Engine::polygonPolygonCollision(*this, s);
+	Engine::polygonPolygonDetection(*this, s);
 }
 
 sf::Vector2f Square::getVertexPosition(int vertex)

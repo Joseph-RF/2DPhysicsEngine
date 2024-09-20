@@ -193,12 +193,15 @@ public:
 	void sortEntities();
 	int getCellNumber(sf::Vector2f pos);
 
-	static void circlePolygonCollision(Circle& c, ConvexPolygon& convexPolygon);
+	static void circleCircleDetection(Circle& c1, Circle& c2);
+	static void circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis);
+	static void circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon);
 	static void circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, float depth, sf::Vector2f axis);
 	static sf::Vector2f closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, sf::Vector2f& b);
-	static void polygonPolygonCollision(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2);
+	static void polygonPolygonDetection(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2);
+	static bool projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float& minDepth, sf::Vector2f& minAxis);
 	static void polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float depth, sf::Vector2f axis);
-	//static void polygonPolygonCollision(std::vector<sf::Vector2f>& vertices1, std::vector<sf::Vector2f>& vertices2);
+
 	static float dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2);
 	static sf::Vector2f normalise(const sf::Vector2f& v);
 	static float findDistance(const sf::Vector2f& v1, const sf::Vector2f& v2);
