@@ -5,7 +5,7 @@ int windowHeight = 800;
 float f_windowWidth = 1200.f;
 float f_windowHeight = 800.f;
 
-int cell_size = 20;
+int cell_size = 50;
 int cell_number_x = windowWidth / cell_size;
 int cell_number_y = windowHeight / cell_size;
 
@@ -85,13 +85,13 @@ void Engine::initWindow()
 
 void Engine::addCircle()
 {
-	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
 void Engine::addSquare()
 {
-	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, sf::Color::Green));
+	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 40.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
@@ -235,7 +235,6 @@ int Engine::getCellNumber(sf::Vector2f pos)
 
 void Engine::circleCircleDetection(Circle& c1, Circle& c2)
 {
-	//c becomes c2, this becomes c1.
 	sf::Vector2f separation = c2.currentPosition - c1.currentPosition;
 	float separation_magnitude = pow((separation.x * separation.x) + (separation.y * separation.y), 0.5f);
 
@@ -247,25 +246,29 @@ void Engine::circleCircleDetection(Circle& c1, Circle& c2)
 void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis)
 {
 	//Resolve collision between the circles
-	const sf::Vector2f vel_c = c2.currentPosition - c2.oldPosition;
-	const sf::Vector2f vel_this = c1.currentPosition - c1.oldPosition;
+	const sf::Vector2f vel_c2 = c2.currentPosition - c2.oldPosition;
+	const sf::Vector2f vel_c1 = c1.currentPosition - c1.oldPosition;
 
-	const float norm_vel_relative = Engine::dotProduct(vel_c - vel_this, axis);
-
-	if (norm_vel_relative > 0) {
-		return;
-	}
+	const float norm_vel_relative = Engine::dotProduct(vel_c2 - vel_c1, axis);
 
 	sf::Vector2f overLapCorrection = 0.5f * (c1.size + c2.size - depth) * axis;
 
 	c1.currentPosition -= overLapCorrection;
 	c2.currentPosition += overLapCorrection;
 
-	float j = -(1 + (c1.resCoeff > c2.resCoeff ? c1.resCoeff : c2.resCoeff)) 
-				* norm_vel_relative / ((1 / c1.mass) + (1 / c2.mass));
+	float j;
 
-	c1.oldPosition += ((j / (1 / c1.mass)) * axis - overLapCorrection);
-	c2.oldPosition -= ((j / (1 / c2.mass)) * axis - overLapCorrection);
+	//Only take impulse into account if objects are moving towards each other.
+	if (norm_vel_relative > 0.f) {
+		j = 0.f;
+	}
+	else {
+		j = -(1.f + (c1.resCoeff > c2.resCoeff ? c1.resCoeff : c2.resCoeff)) *
+			norm_vel_relative / ((1.f / c1.mass) + (1.f / c2.mass));
+	}
+
+	c1.oldPosition += ((j / (1.f / c1.mass)) * axis - overLapCorrection);
+	c2.oldPosition -= ((j / (1.f / c2.mass)) * axis - overLapCorrection);
 }
 
 void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
@@ -425,20 +428,21 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, fl
 
 	float normRelativeVelocity = Engine::dotProduct(polygonVelocity - circleVelocity, axis);
 
-	//Are the shapes moving away from each other? If so, don't do anything.
-	if (normRelativeVelocity > 0) {
-		return;
+	float j;
+	if (normRelativeVelocity > 0.f) {
+		j = 0.f;
 	}
-
-	float j = -(1 + (c.resCoeff > convexPolygon.resCoeff ? c.resCoeff : convexPolygon.resCoeff))
-				* normRelativeVelocity / ((1 / c.mass) + (1 / convexPolygon.mass));
+	else {
+		j = -(1 + (c.resCoeff > convexPolygon.resCoeff ? c.resCoeff : convexPolygon.resCoeff))
+			* normRelativeVelocity / ((1.f / c.mass) + (1.f / convexPolygon.mass));
+	}
 
 	//Separate the two shapes. It should be noted axis MUST be normalised here.
 	c.currentPosition -= (0.5f * depth * axis);
 	convexPolygon.currentPosition += (0.5f * depth * axis);
 
-	c.oldPosition += (((j / (1 / c.mass)) * axis) - 0.5f * depth * axis);
-	convexPolygon.oldPosition -= (((j / (1 / convexPolygon.mass)) * axis) - 0.5f * depth * axis);
+	c.oldPosition += (((j / (1.f / c.mass)) * axis) - 0.5f * depth * axis);
+	convexPolygon.oldPosition -= (((j / (1.f / convexPolygon.mass)) * axis) - 0.5f * depth * axis);
 
 	return;
 }
@@ -565,20 +569,21 @@ void Engine::polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolyg
 
 	float normRelativeVelocity = Engine::dotProduct(polygon2Velocity - polygon1Velocity, axis);
 
-	//Are the polygons moving away from each other? If so, don't do anything.
-	if (normRelativeVelocity > 0) {
-		return;
+	float j;
+	if (normRelativeVelocity > 0.f) {
+		j = 0.f;
 	}
-
-	float j = -(1 + (convexPolygon1.resCoeff > convexPolygon2.resCoeff ? convexPolygon1.resCoeff : convexPolygon2.resCoeff))
-		* normRelativeVelocity / ((1 / convexPolygon1.mass) + (1 / convexPolygon2.mass));
+	else {
+		j = -(1 + (convexPolygon1.resCoeff > convexPolygon2.resCoeff ? convexPolygon1.resCoeff : convexPolygon2.resCoeff))
+			* normRelativeVelocity / ((1.f / convexPolygon1.mass) + (1.f / convexPolygon2.mass));
+	}
 
 	//Separate the two polygons. It should be noted axis MUST be normalised here.
 	convexPolygon1.currentPosition -= (0.5f * depth * axis);
 	convexPolygon2.currentPosition += (0.5f * depth * axis);
 	
-	convexPolygon1.oldPosition += (((j / (1 / convexPolygon1.mass)) * axis) - 0.5f * depth * axis);
-	convexPolygon2.oldPosition -= (((j / (1 / convexPolygon2.mass)) * axis) - 0.5f * depth * axis);
+	convexPolygon1.oldPosition += (((j / (1.f / convexPolygon1.mass)) * axis) - 0.5f * depth * axis);
+	convexPolygon2.oldPosition -= (((j / (1.f / convexPolygon2.mass)) * axis) - 0.5f * depth * axis);
 
 	return;
 }
@@ -831,6 +836,10 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	resCoeff = 0.75f;
 
 	force = { 0.f, 0.f };
+	/*
+	body.setOutlineThickness(1);
+	body.setOutlineColor(sf::Color(250, 150, 100));
+	*/
 }
 
 Square::~Square()
@@ -840,7 +849,7 @@ Square::~Square()
 void Square::updatePosition()
 {
 	body.setPosition(currentPosition);
-	body.rotate(1.f);
+	//body.rotate(1.f);
 }
 
 void Square::entityBarrierCollision()
