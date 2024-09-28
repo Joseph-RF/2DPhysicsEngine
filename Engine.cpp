@@ -157,13 +157,16 @@ void Engine::solver(Entity& E, float dt)
 
 
 	sf::Vector2f displacement = E.currentPosition - E.oldPosition;
+	float angularDisplacement = E.currentAngle - E.oldAngle;
 
 	E.oldPosition = E.currentPosition;
+	E.oldAngle = E.currentAngle;
 
 	applyGravity(E);
 	E.currentAcceleration = E.force / E.mass;
 
 	E.currentPosition += displacement + (E.currentAcceleration * dt * dt);
+	E.currentAngle += angularDisplacement;
 
 	E.force = { 0.f, 0.f };
 }
@@ -777,14 +780,21 @@ Circle::Circle()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
 	oldPosition = currentPosition;
-	mass = 1;
+
+	currentAngle = 0.f;
+	oldAngle = 0.f;
+
+	mass = 1.f;
 	size = 5.f;
+	momentOfInertia = mass * size * size * 0.5f;
+	resCoeff = 0.8f;
+
 	body.setRadius(size);
 	color = sf::Color::White;
 	body.setFillColor(color);
-	resCoeff = 0.75f;
 
 	body.setOrigin(size, size);
+
 	force = { 0.f, 0.f };
 }
 
@@ -792,16 +802,23 @@ Circle::Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 {
 	currentPosition = inputPos;
 	oldPosition = currentPosition;
+
+	currentAngle = 0.f;
+	oldAngle = 0.f;
+
 	mass = inputMass;
 	size = inputSize;
+	momentOfInertia = mass * size * size * 0.5f;
+	resCoeff = 0.8f;
+
 	body.setRadius(size);
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.95f;
 
 	body.setOrigin(size, size);
-	force = { 0.f, 0.f };
 	body.setRadius(size);
+
+	force = { 0.f, 0.f };
 }
 
 Circle::~Circle()
@@ -812,6 +829,7 @@ Circle::~Circle()
 void Circle::updatePosition()
 {
 	body.setPosition(currentPosition);
+	body.setRotation(currentAngle);
 }
 
 void Circle::entityBarrierCollision()
@@ -874,8 +892,13 @@ Square::Square()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
 	oldPosition = currentPosition;
-	mass = 1;
+
+	currentAngle = 0.f;
+	oldAngle = 0.f;
+
+	mass = 1.f;
 	size = 10.f;
+	momentOfInertia = mass * size * size / 6.f;
 
 	body.setPointCount(4);
 	body.setPoint(0, { -(size / 2.f), -(size / 2.f) });
@@ -885,7 +908,7 @@ Square::Square()
 
 	color = sf::Color::Green;
 	body.setFillColor(color);
-	resCoeff = 0.75f;
+	resCoeff = 0.8f;
 
 	force = { 0.f, 0.f };
 }
@@ -894,8 +917,13 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 {
 	currentPosition = inputPos;
 	oldPosition = currentPosition;
+
+	currentAngle = 0.f;
+	oldAngle = 0.4f;
+
 	mass = inputMass;
 	size = inputSize;
+	momentOfInertia = mass * size * size / 6.f;
 
 	//Points for a square are defined starting in top left corner and moving clockwise.
 	//Co-ordinates of points are relative to the position of the body
@@ -908,7 +936,7 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.95f;
+	resCoeff = 0.8f;
 
 	force = { 0.f, 0.f };
 	/*
@@ -924,7 +952,8 @@ Square::~Square()
 void Square::updatePosition()
 {
 	body.setPosition(currentPosition);
-	body.rotate(0.4f);
+	body.setRotation(currentAngle);
+	//body.rotate(0.4f);
 }
 
 void Square::entityBarrierCollision()
@@ -981,7 +1010,7 @@ void Square::detectSquareCollision(Square& s)
 sf::Vector2f Square::getVertexPosition(int vertex)
 {
 	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
-	float angle = (3.14159 / 180.f) * body.getRotation();
+	float angle = (3.14159 / 180.f) * currentAngle;
 
 	float x = (nonRotatedPosition.x * std::cos(angle)) - (nonRotatedPosition.y * std::sin(angle));
 	float y = (nonRotatedPosition.x * std::sin(angle)) + (nonRotatedPosition.y * std::cos(angle));

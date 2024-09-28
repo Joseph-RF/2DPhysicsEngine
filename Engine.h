@@ -30,10 +30,16 @@ class Entity
 public:
 	sf::Vector2f currentPosition;
 	sf::Vector2f oldPosition;
+
+	float currentAngle;
+	float oldAngle;
+
 	sf::Vector2f currentAcceleration;
 	sf::Vector2f force;
 
 	float mass;
+	float momentOfInertia;
+
 	float resCoeff;
 
 	sf::Color color;
