@@ -85,13 +85,13 @@ void Engine::initWindow()
 
 void Engine::addCircle()
 {
-	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, sf::Color::Green));
+	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Red));
 	entitiesSpawned++;
 }
 
 void Engine::addSquare()
 {
-	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 40.f, sf::Color::Green));
+	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, sf::Color::Green));
 	entitiesSpawned++;
 }
 
@@ -271,6 +271,31 @@ void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vec
 	c2.oldPosition -= ((j / (1.f / c2.mass)) * axis - overLapCorrection);
 }
 
+void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& polygon)
+{
+	sf::Vector2f closestPoint;
+	int polygonVertexCount = polygon.body.getPointCount();
+
+	for (int i = 0; i < polygonVertexCount; ++i) {
+		sf::Vector2f tempVector = Engine::closestPointOnLineSegment(c.currentPosition, polygon.getVertexPosition(i),
+																	polygon.getVertexPosition((i + 1) % polygonVertexCount));
+		float tempDistance = Engine::findDistance(c.currentPosition, tempVector);
+
+		if (tempDistance < c.size) {
+			sf::Vector2f axis = tempVector - c.currentPosition;
+			axis = Engine::normalise(axis);
+
+			//Check the normal is facing in the correct direction
+			if (dotProduct(polygon.currentPosition - c.currentPosition, axis) < 0.f) {
+				axis = {-axis.x, -axis.y};
+			}
+			//std::cout << "Distance being passed: " << tempDistance << std::endl;
+			Engine::circlePolygonResolution(c, polygon, (c.size - tempDistance), axis, tempVector - polygon.currentPosition);
+		}
+	}
+}
+
+/*
 void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
 {	
 	//SAT implementation to find out whether a polygon and a circle have collided
@@ -346,20 +371,22 @@ void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
 		}
 	}
 
-	//Find the axis point from the center of the circle to the closest polygon vertex.
+	//Find the axis point from the center of the circle to the closest point on the polygon.
 
 	sf::Vector2f axis;
 	float depth;
 
-	float shortestDistance = std::numeric_limits<float>::max();
-
-	for (int i = 0; i < polygonVertexCount; ++i) {
-		float distance = Engine::findDistance(convexPolygon.getVertexPosition(i), c.currentPosition);
-		if (distance < shortestDistance) {
-			shortestDistance = distance;
-			axis = c.currentPosition - convexPolygon.getVertexPosition(i); //Should this be reversed?
-		}
-	}
+	
+	//for (int i = 0; i < polygonVertexCount; ++i) {
+		//float distance = Engine::findDistance(convexPolygon.getVertexPosition(i), c.currentPosition);
+		//if (distance < shortestDistance) {
+			//shortestDistance = distance;
+			//axis = c.currentPosition - convexPolygon.getVertexPosition(i); //Should this be reversed?
+		//}
+	//}
+	
+	sf::Vector2f closestPoint = Engine::findContactPoint(c, convexPolygon);
+	axis = c.currentPosition - closestPoint;
 
 	axis = Engine::normalise(axis);
 
@@ -412,19 +439,23 @@ void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
 	}
 
 	//Polygons are colliding and the minimum distance in order to separate the two has been found.
-
+	float distance = Engine::findDistance(Engine::findContactPoint(c, convexPolygon), c.currentPosition);
+	if (distance > 10.1f) {
+		std::cout << "Over the maximum expected" << std::endl;
+		std::cout << distance << std::endl;
+	}
 	//Check the normal is facing in the correct direction
 	if (dotProduct(convexPolygon.currentPosition - c.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
 	circlePolygonResolution(c, convexPolygon, minimumDepth, minimumAxis);
 }
-
-void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, float depth, sf::Vector2f axis)
+*/
+void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float depth, sf::Vector2f axis, const sf::Vector2f& contactPointOnPolygon)
 {
 	//Note will be leaving out the time factor for velocities since it cancels out in the end.
 	const sf::Vector2f circleVelocity = (c.currentPosition - c.oldPosition);
-	const sf::Vector2f polygonVelocity = (convexPolygon.currentPosition - convexPolygon.oldPosition);
+	const sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
 
 	float normRelativeVelocity = Engine::dotProduct(polygonVelocity - circleVelocity, axis);
 
@@ -433,16 +464,23 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, fl
 		j = 0.f;
 	}
 	else {
-		j = -(1 + (c.resCoeff > convexPolygon.resCoeff ? c.resCoeff : convexPolygon.resCoeff))
-			* normRelativeVelocity / ((1.f / c.mass) + (1.f / convexPolygon.mass));
+		j = -(1 + (c.resCoeff > polygon.resCoeff ? c.resCoeff : polygon.resCoeff))
+			* normRelativeVelocity / ((1.f / c.mass) + (1.f / polygon.mass));
 	}
 
 	//Separate the two shapes. It should be noted axis MUST be normalised here.
 	c.currentPosition -= (0.5f * depth * axis);
-	convexPolygon.currentPosition += (0.5f * depth * axis);
+	polygon.currentPosition += (0.5f * depth * axis);
+
+	const sf::Vector2f contactPoint = contactPointOnPolygon + polygon.currentPosition;
+	
+	float distance = Engine::findDistance(contactPoint, c.currentPosition);
+	//std::cout << "Distance between contact point and circle centre: " << distance << std::endl;
+	//std::cout << "Distance between contact point and polygon centre: " << Engine::findDistance(contactPoint, polygon.currentPosition) << std::endl;
+
 
 	c.oldPosition += (((j / (1.f / c.mass)) * axis) - 0.5f * depth * axis);
-	convexPolygon.oldPosition -= (((j / (1.f / convexPolygon.mass)) * axis) - 0.5f * depth * axis);
+	polygon.oldPosition -= (((j / (1.f / polygon.mass)) * axis) - 0.5f * depth * axis);
 
 	return;
 }
@@ -588,6 +626,43 @@ void Engine::polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolyg
 	return;
 }
 
+sf::Vector2f Engine::closestPointOnLineSegment(const sf::Vector2f& circlePos, const sf::Vector2f& vertex1Pos, const sf::Vector2f& vertex2Pos)
+{
+	sf::Vector2f edge = vertex2Pos - vertex1Pos;
+	float denominator = Engine::dotProduct(edge, edge);
+	if (denominator == 0.0f) {
+		return vertex1Pos;
+	}
+
+	float t = Engine::dotProduct((circlePos - vertex1Pos), edge) / denominator;
+
+	//Clamp t between 0 and 1.
+	if (t > 1.f) { t = 1.f; }
+	else if (t < 0.f) { t = 0.f; }
+
+	return (vertex1Pos + (t * (vertex2Pos - vertex1Pos)));
+}
+
+sf::Vector2f Engine::findContactPoint(Circle& c, ConvexPolygon& convexPolygon)
+{
+	sf::Vector2f contactPoint;
+	float distanceToContactPoint = std::numeric_limits<float>::max();
+
+	int polygonVertexCount = convexPolygon.body.getPointCount();
+
+	for (int i = 0; i < polygonVertexCount; ++i) {
+		sf::Vector2f tempVector = Engine::closestPointOnLineSegment(c.currentPosition, convexPolygon.getVertexPosition(i),
+																	convexPolygon.getVertexPosition((i + 1) % polygonVertexCount));
+		float tempDistance = Engine::findDistance(c.currentPosition, tempVector);
+
+		if (tempDistance < distanceToContactPoint) {
+			distanceToContactPoint = tempDistance;
+			contactPoint = tempVector;
+		}
+	}
+	return contactPoint;
+}
+
 float Engine::dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2)
 {
 	return ((v1.x * v2.x) + (v1.y * v2.y));
@@ -722,7 +797,7 @@ Circle::Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	body.setRadius(size);
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.75f;
+	resCoeff = 0.95f;
 
 	body.setOrigin(size, size);
 	force = { 0.f, 0.f };
@@ -833,7 +908,7 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.75f;
+	resCoeff = 0.95f;
 
 	force = { 0.f, 0.f };
 	/*
@@ -849,7 +924,7 @@ Square::~Square()
 void Square::updatePosition()
 {
 	body.setPosition(currentPosition);
-	//body.rotate(1.f);
+	body.rotate(0.4f);
 }
 
 void Square::entityBarrierCollision()

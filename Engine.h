@@ -195,12 +195,15 @@ public:
 
 	static void circleCircleDetection(Circle& c1, Circle& c2);
 	static void circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis);
-	static void circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon);
-	static void circlePolygonResolution(Circle& c, ConvexPolygon& convexPolygon, float depth, sf::Vector2f axis);
+	static void circlePolygonDetection(Circle& c, ConvexPolygon& polygon);
+	static void circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float depth, sf::Vector2f axis, const sf::Vector2f& contactPointOnPolygon);
 	static sf::Vector2f closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, sf::Vector2f& b);
 	static void polygonPolygonDetection(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2);
 	static bool projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float& minDepth, sf::Vector2f& minAxis);
 	static void polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float depth, sf::Vector2f axis);
+
+	static sf::Vector2f closestPointOnLineSegment(const sf::Vector2f& circlePos, const sf::Vector2f& vertex1Pos, const sf::Vector2f& vertex2Pos);
+	static sf::Vector2f findContactPoint(Circle& c, ConvexPolygon& convexPolygon);
 
 	static float dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2);
 	static sf::Vector2f normalise(const sf::Vector2f& v);
