@@ -159,6 +159,9 @@ void Engine::solver(Entity& E, float dt)
 	sf::Vector2f displacement = E.currentPosition - E.oldPosition;
 	float angularDisplacement = E.currentAngle - E.oldAngle;
 
+	//Damping coefficient
+	angularDisplacement *= 0.999f;
+
 	E.oldPosition = E.currentPosition;
 	E.oldAngle = E.currentAngle;
 
@@ -457,6 +460,51 @@ void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
 void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float depth, sf::Vector2f axis, const sf::Vector2f& contactPointOnPolygon)
 {
 	//Note will be leaving out the time factor for velocities since it cancels out in the end.
+	//Denoting circle as A and polygon as B.
+	const sf::Vector2f LinearVelocity_A = (c.currentPosition - c.oldPosition);
+	const sf::Vector2f LinearVelocity_B = (polygon.currentPosition - polygon.oldPosition);
+
+	//Separate the two shapes. It should be noted axis MUST be normalised here.
+	c.currentPosition -= (0.5f * depth * axis);
+	polygon.currentPosition += (0.5f * depth * axis);
+
+	if (Engine::dotProduct(LinearVelocity_B - LinearVelocity_A, axis) > 0.f) {
+
+		return;
+	}
+
+	//Denoting point of contact as P
+	const sf::Vector2f r_P = contactPointOnPolygon + polygon.currentPosition;
+	sf::Vector2f r_PA = r_P - c.currentPosition;
+	sf::Vector2f r_PB = r_P - polygon.currentPosition;
+
+	sf::Vector2f r_PA_perp = { r_PA.y, -r_PA.x };
+	sf::Vector2f r_PB_perp = { r_PB.y, -r_PB.x };
+	//std::cout << "Distance between contact point and circle centre: " << Engine::findDistance(r_P, c.currentPosition) << std::endl;
+	//std::cout << "Distance between contact point and polygon centre: " << Engine::findDistance(r_P, polygon.currentPosition) << std::endl;
+
+	sf::Vector2f relativeVelocity = (LinearVelocity_B + (polygon.currentAngle - polygon.oldAngle) * (3.14159f / 180.f) * r_PB_perp) -
+									(LinearVelocity_A + (c.currentAngle - c.oldAngle) * (3.14159f / 180.f) * r_PA_perp);
+
+
+	float j = -(1 + (c.resCoeff > polygon.resCoeff ? c.resCoeff : polygon.resCoeff)) * Engine::dotProduct(relativeVelocity, axis);
+
+	j /= (Engine::dotProduct(axis, axis) * (1.f / c.mass + 1.f / polygon.mass) + 
+			(pow(Engine::dotProduct(r_PA_perp, axis), 2.f) / c.momentOfInertia) + 
+			(pow(Engine::dotProduct(r_PB_perp, axis), 2.f) / polygon.momentOfInertia)
+		 );
+
+	c.oldPosition += (((j / (1.f / c.mass)) * axis) - 0.5f * depth * axis);
+	polygon.oldPosition -= (((j / (1.f / polygon.mass)) * axis) - 0.5f * depth * axis);
+
+	c.oldAngle += Engine::dotProduct(r_PA_perp, j * axis) * (180.f / 3.14159f) / c.momentOfInertia;
+	polygon.oldAngle -= Engine::dotProduct(r_PB_perp, j * axis) * (180.f / 3.14159f) / polygon.momentOfInertia;
+
+	return;
+
+
+	/*
+		//Note will be leaving out the time factor for velocities since it cancels out in the end.
 	const sf::Vector2f circleVelocity = (c.currentPosition - c.oldPosition);
 	const sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
 
@@ -486,6 +534,7 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float de
 	polygon.oldPosition -= (((j / (1.f / polygon.mass)) * axis) - 0.5f * depth * axis);
 
 	return;
+	*/
 }
 
 sf::Vector2f Engine::closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, sf::Vector2f& b)
