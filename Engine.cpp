@@ -1,8 +1,10 @@
 /*
-* Consider using AABB optimisation.
 * Note that very small acceleration doesn't work due to floating point precision.
 * Bug? Feature? It looks like circles collide with squares, the circle loses
 * all momentum perpendicular to the edge of the circle it collided with.
+* Make the bounding box general for any barrier rotation.
+* Consider updating once every single frame. Should be no problem since barriers
+* cannot be moved by other objects.
 */
 
 #include "Engine.h"
@@ -308,6 +310,10 @@ void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vec
 
 void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& polygon)
 {
+	if (!Engine::checkBoundingBox(c, polygon)) {
+		return;
+	}
+
 	sf::Vector2f closestPoint;
 	int polygonVertexCount = polygon.body.getPointCount();
 
@@ -404,7 +410,11 @@ sf::Vector2f Engine::closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, s
 }
 
 void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& polygonB)
-{	
+{
+	if (!Engine::checkBoundingBox(polygonA, polygonB)) {
+		return;
+	}
+
 	float minimumDepth = float_upperLimit;
 	sf::Vector2f minimumAxis;
 	
@@ -576,6 +586,88 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 	}
 
 	return;
+}
+
+bool Engine::checkBoundingBox(Circle& circle, rectBarrier& barrier)
+{
+	//NOTE: ASSUMES BARRIER IS NOT ROTATED
+
+	float maxX_circle = 0.f;
+	float minX_circle = 0.f;
+	float maxY_circle = 0.f;
+	float minY_circle = 0.f;
+
+	sf::Vector2f barrierSize = barrier.size;
+
+	float maxX_barrier = barrier.position.x + barrierSize.x;
+	float minX_barrier = barrier.position.x - barrierSize.x;
+	float maxY_barrier = barrier.position.y + barrierSize.y;
+	float minY_barrier = barrier.position.y - barrierSize.y;
+
+	circle.getBoundingBox(maxX_circle, minX_circle, maxY_circle, minY_circle);
+
+	return (minX_circle < maxX_barrier && maxX_circle > minX_barrier &&
+			minY_circle < maxY_barrier && maxY_circle > minY_barrier);
+}
+
+bool Engine::checkBoundingBox(ConvexPolygon& polygon, rectBarrier& barrier)
+{
+	//NOTE: ASSUMES BARRIER IS NOT ROTATED
+
+	float maxX_polygon = 0.f;
+	float minX_polygon = 0.f;
+	float maxY_polygon = 0.f;
+	float minY_polygon = 0.f;
+
+	sf::Vector2f barrierSize = barrier.size;
+
+	float maxX_barrier = barrier.position.x + barrierSize.x;
+	float minX_barrier = barrier.position.x - barrierSize.x;
+	float maxY_barrier = barrier.position.y + barrierSize.y;
+	float minY_barrier = barrier.position.y - barrierSize.y;
+
+	polygon.getBoundingBox(maxX_polygon, minX_polygon, maxY_polygon, minY_polygon);
+
+	return (minX_polygon < maxX_barrier && maxX_polygon > minX_barrier &&
+			minY_polygon < maxY_barrier && maxY_polygon > minY_barrier);
+}
+
+bool Engine::checkBoundingBox(Circle& circle, ConvexPolygon& polygon)
+{
+	float maxX_circle = 0.f;
+	float minX_circle = 0.f;
+	float maxY_circle = 0.f;
+	float minY_circle = 0.f;
+
+	float maxX_polygon = 0.f;
+	float minX_polygon = 0.f;
+	float maxY_polygon = 0.f;
+	float minY_polygon = 0.f;
+
+	circle.getBoundingBox(maxX_circle, minX_circle, maxY_circle, minY_circle);
+	polygon.getBoundingBox(maxX_polygon, minX_polygon, maxY_polygon, minY_polygon);
+
+	return (minX_circle < maxX_polygon && maxX_circle > minX_polygon &&
+			minY_circle < maxY_polygon && maxY_circle > minY_polygon);
+}
+
+bool Engine::checkBoundingBox(ConvexPolygon& polygonA, ConvexPolygon& polygonB)
+{
+	float maxX_A = 0.f;
+	float minX_A = 0.f;
+	float maxY_A = 0.f;
+	float minY_A = 0.f;
+
+	float maxX_B = 0.f;
+	float minX_B = 0.f;
+	float maxY_B = 0.f;
+	float minY_B = 0.f;
+
+	polygonA.getBoundingBox(maxX_A, minX_A, maxY_A, minY_A);
+	polygonB.getBoundingBox(maxX_B, minX_B, maxY_B, minY_B);
+
+	return (minX_A < maxX_B && maxX_A > minX_B &&
+			minY_A < maxY_B && maxY_A > minY_B);
 }
 
 sf::Vector2f Engine::closestPointOnLineSegment(const sf::Vector2f& circlePos, const sf::Vector2f& vertex1Pos, const sf::Vector2f& vertex2Pos)
@@ -835,6 +927,10 @@ std::pair<sf::Vector2f, sf::Vector2f> Engine::findReferenceEdge(ConvexPolygon& p
 
 void Engine::polygonBarrierDetection(ConvexPolygon& polygon, rectBarrier& barrier)
 {
+	if (!Engine::checkBoundingBox(polygon, barrier)) {
+		return;
+	}
+
 	//std::cout << "Checking" << std::endl;
 	float minimumDepth = float_upperLimit;
 	sf::Vector2f minimumAxis;
@@ -926,6 +1022,10 @@ void Engine::polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barri
 
 void Engine::circleBarrierDetection(Circle& c, rectBarrier& b)
 {
+	if (!Engine::checkBoundingBox(c, b)) {
+		return;
+	}
+
 	sf::Vector2f closestPoint;
 	int barrierVertexCount = b.body.getPointCount();
 
@@ -1161,6 +1261,7 @@ Circle::Circle()
 
 	mass = 1.f;
 	size = 5.f;
+	diameter = size * 2;
 	momentOfInertia = mass * size * size * 0.5f;
 	resCoeff = 0.8f;
 
@@ -1183,6 +1284,7 @@ Circle::Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 	mass = inputMass;
 	size = inputSize;
+	diameter = size * 2;
 	momentOfInertia = mass * size * size * 0.5f;
 	resCoeff = 0.8f;
 
@@ -1199,6 +1301,14 @@ Circle::Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 Circle::~Circle()
 {
 
+}
+
+void Circle::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
+{
+	maxX = this->currentPosition.x + this->size;
+	minX = this->currentPosition.x - this->size;
+	maxY = this->currentPosition.y + this->size;
+	minY = this->currentPosition.y - this->size;
 }
 
 void Circle::updatePosition()
@@ -1242,6 +1352,7 @@ Square::Square()
 
 	mass = 1.f;
 	size = 10.f;
+	diameter = pow(size * size + size * size, 0.5f);
 	momentOfInertia = mass * size * size / 6.f;
 
 	body.setPointCount(4);
@@ -1267,6 +1378,7 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 	mass = inputMass;
 	size = inputSize;
+	diameter = pow(size * size + size * size, 0.5f);
 	momentOfInertia = mass * size * size / 6.f;
 
 	//Points for a square are defined starting in top left corner and moving clockwise.
@@ -1291,6 +1403,14 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 Square::~Square()
 {
+}
+
+void Square::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
+{
+	maxX = this->currentPosition.x + diameter * 0.5f;
+	minX = this->currentPosition.x - diameter * 0.5f;
+	maxY = this->currentPosition.y + diameter * 0.5f;
+	minY = this->currentPosition.y - diameter * 0.5f;
 }
 
 void Square::updatePosition()

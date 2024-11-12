@@ -42,6 +42,7 @@ public:
 	sf::Vector2f currentAcceleration;
 	sf::Vector2f force;
 
+	float diameter;
 	float mass;
 	float momentOfInertia;
 
@@ -50,6 +51,8 @@ public:
 	sf::Color color;
 
 	virtual ~Entity() = default;
+
+	virtual void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) = 0;
 
 	virtual void updatePosition() = 0;
 	virtual void detectBarrierCollision(rectBarrier& b) = 0;
@@ -70,6 +73,8 @@ public:
 	Circle();
 	Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
 	~Circle();
+
+	virtual void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
 
 	void updatePosition() override;
 	void detectBarrierCollision(rectBarrier& b) override;
@@ -95,6 +100,8 @@ public:
 	Square();
 	Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
 	~Square();
+
+	virtual void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
 
 	void updatePosition() override;
 	void detectBarrierCollision(rectBarrier& b) override;
@@ -205,6 +212,11 @@ public:
 	void detectEntityEntityCollision(int grid_cell, Entity* E);
 	void sortEntities();
 	int getCellNumber(sf::Vector2f pos);
+
+	static bool checkBoundingBox(Circle& circle, rectBarrier& barrier);
+	static bool checkBoundingBox(ConvexPolygon& polygon, rectBarrier& barrier);
+	static bool checkBoundingBox(Circle& circle, ConvexPolygon& polygon);
+	static bool checkBoundingBox(ConvexPolygon& polygonA, ConvexPolygon& polygonB);
 
 	static void circleCircleDetection(Circle& c1, Circle& c2);
 	static void circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis);
