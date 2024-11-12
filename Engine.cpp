@@ -1,3 +1,8 @@
+/*
+* Consider using AABB optimisation.
+* Note that very small acceleration doesn't work due to floating point precision.
+*/
+
 #include "Engine.h"
 
 int windowWidth = 1200;
@@ -5,14 +10,16 @@ int windowHeight = 800;
 float f_windowWidth = 1200.f;
 float f_windowHeight = 800.f;
 
-int cell_size = 50;
+int cell_size = 20;
 int cell_number_x = windowWidth / cell_size;
 int cell_number_y = windowHeight / cell_size;
 
-extern sf::Vector2f lowerBarrier_position = { 0.f , f_windowHeight * 0.95f };
-extern sf::Vector2f upperBarrier_position = { 0.f, 0.f };
-extern sf::Vector2f rightBarrier_position = { f_windowWidth - 20.f ,0.f };
-extern sf::Vector2f leftBarrier_position = { 0.f, 0.f };
+extern sf::Vector2f lowerBarrier_position = { f_windowWidth * 0.5f , f_windowHeight * 0.95f };
+extern sf::Vector2f upperBarrier_position = { f_windowWidth * 0.5f , 10.f };
+extern sf::Vector2f rightBarrier_position = { f_windowWidth - 10.f , f_windowHeight * 0.5f};
+extern sf::Vector2f leftBarrier_position = { 10.f, f_windowHeight * 0.5f };
+
+std::vector<sf::RectangleShape> Engine::objectsToDraw;
 
 Engine::Engine()
 {
@@ -64,17 +71,30 @@ void Engine::initText()
 
 void Engine::initScene()
 {
-	upperBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, 0));
+	rectBarriers.emplace_back(sf::Color::White, sf::Vector2f(f_windowWidth, 20), upperBarrier_position);
 	sf::Vector2f upperBarrier_position = { 0.f ,0.f };
 
-	rightBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(f_windowWidth - 20, 0));
+	rectBarriers.emplace_back(sf::Color::White, sf::Vector2f(20, f_windowHeight), rightBarrier_position);
 	sf::Vector2f rightBarrier_position = { f_windowWidth - 20.f ,0.f };
 
-	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), sf::Vector2f(0, f_windowHeight * 0.95f));
+	rectBarriers.emplace_back(sf::Color::White, sf::Vector2f(f_windowWidth, 20), lowerBarrier_position);
 	sf::Vector2f lowerBarrier_position = { 0.f , f_windowHeight * 0.95f };
 
-	leftBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), sf::Vector2f(0, 0));
+	rectBarriers.emplace_back(sf::Color::White, sf::Vector2f(20, f_windowHeight), leftBarrier_position);
 	sf::Vector2f leftBarrier_position = { 0.f , 0.f };
+	/*
+	upperBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), upperBarrier_position);
+	sf::Vector2f upperBarrier_position = { 0.f ,0.f };
+
+	rightBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), rightBarrier_position);
+	sf::Vector2f rightBarrier_position = { f_windowWidth - 20.f ,0.f };
+
+	lowerBarrier.setBarrier(sf::Color::White, sf::Vector2f(f_windowWidth, 20), lowerBarrier_position);
+	sf::Vector2f lowerBarrier_position = { 0.f , f_windowHeight * 0.95f };
+
+	leftBarrier.setBarrier(sf::Color::White, sf::Vector2f(20, f_windowHeight), leftBarrier_position);
+	sf::Vector2f leftBarrier_position = { 0.f , 0.f };
+	*/
 }
 
 void Engine::initWindow()
@@ -85,13 +105,15 @@ void Engine::initWindow()
 
 void Engine::addCircle()
 {
-	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, sf::Color::Red));
+	sf::Color colour = sf::Color(rand() % 100 + 155, rand() % 100 + 155, rand() % 100 + 155);
+	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, colour));
 	entitiesSpawned++;
 }
 
 void Engine::addSquare()
 {
-	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, sf::Color::Green));
+	sf::Color colour = sf::Color(rand() % 100 + 155, rand() % 100 + 155, rand() % 100 + 155);
+	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, colour));
 	entitiesSpawned++;
 }
 
@@ -160,7 +182,7 @@ void Engine::solver(Entity& E, float dt)
 	float angularDisplacement = E.currentAngle - E.oldAngle;
 
 	//Damping coefficient
-	angularDisplacement *= 0.999f;
+	angularDisplacement *= 0.99f;
 
 	E.oldPosition = E.currentPosition;
 	E.oldAngle = E.currentAngle;
@@ -169,23 +191,35 @@ void Engine::solver(Entity& E, float dt)
 	E.currentAcceleration = E.force / E.mass;
 
 	E.currentPosition += displacement + (E.currentAcceleration * dt * dt);
+	//std::cout << (E.currentAcceleration.y * dt * dt) << std::endl;
+	//std::cout << "Old position: " << E.oldPosition.y << std::endl;
+	//std::cout << "Current position: " << E.currentPosition.y << std::endl;
 	E.currentAngle += angularDisplacement;
 
 	E.force = { 0.f, 0.f };
+
+	//std::cout << "Old Angle: " << E.oldAngle << std::endl;
+	//std::cout << "Current Angle: " << E.currentAngle << std::endl;
+	//std::cout << "Change: " << angularDisplacement << std::endl;
 }
 
 inline void Engine::applyGravity(Entity& E)
 {
 	//Different forces will be added here
-	E.force += {0.f * E.mass, (1000.f * E.mass)}; //Gravity
+	E.force += {0.f * E.mass, (500.f * E.mass)}; //Gravity
 }
 
 void Engine::detectEntityBarrierCollision()
 {
 	size_t entityNumber = Entities.size();
 	for (size_t i = 0; i < entityNumber; ++i) {
-
-		Entities[i]->entityBarrierCollision();
+		//Consider doing a pseudo wide sweep here. Would need to be able to access entities size
+		size_t barrierNumber = rectBarriers.size();
+		for (size_t j = 0; j < barrierNumber; ++j) {
+			//Entities[i]->entityBarrierCollision(rectBarriers[j]);
+			Entities[i]->detectBarrierCollision(rectBarriers[j]);
+		}
+		//Engine::polygonBarrierDetection(*Entities[i], );
 	}
 }
 
@@ -236,7 +270,16 @@ void Engine::sortEntities()
 
 int Engine::getCellNumber(sf::Vector2f pos)
 {
-	return ((std::floor(pos.x / cell_size)) + std::floor(pos.y / cell_size) * cell_number_x);
+	int cellColumn = std::floor(pos.x / cell_size);
+	int cellRow = std::floor(pos.y / cell_size) * cell_number_x;
+
+	if (cellColumn > cell_number_x || cellColumn < 0) {
+		return 0;
+	}
+	if (cellRow > cell_number_y || cellRow < 0) {
+		return 0;
+	}
+	return cellColumn * cellRow;
 }
 
 void Engine::circleCircleDetection(Circle& c1, Circle& c2)
@@ -251,16 +294,16 @@ void Engine::circleCircleDetection(Circle& c1, Circle& c2)
 
 void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis)
 {
+	sf::Vector2f overLapCorrection = 0.5f * (c1.size + c2.size - depth) * axis;
+
+	c1.currentPosition -= overLapCorrection;
+	c2.currentPosition += overLapCorrection;
+
 	//Resolve collision between the circles
 	const sf::Vector2f vel_c2 = c2.currentPosition - c2.oldPosition;
 	const sf::Vector2f vel_c1 = c1.currentPosition - c1.oldPosition;
 
 	const float norm_vel_relative = Engine::dotProduct(vel_c2 - vel_c1, axis);
-
-	sf::Vector2f overLapCorrection = 0.5f * (c1.size + c2.size - depth) * axis;
-
-	c1.currentPosition -= overLapCorrection;
-	c2.currentPosition += overLapCorrection;
 
 	float j;
 
@@ -273,8 +316,8 @@ void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vec
 			norm_vel_relative / ((1.f / c1.mass) + (1.f / c2.mass));
 	}
 
-	c1.oldPosition += ((j / (1.f / c1.mass)) * axis - overLapCorrection);
-	c2.oldPosition -= ((j / (1.f / c2.mass)) * axis - overLapCorrection);
+	c1.oldPosition += ((j / (1.f / c1.mass)) * axis);
+	c2.oldPosition -= ((j / (1.f / c2.mass)) * axis);
 }
 
 void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& polygon)
@@ -460,7 +503,49 @@ void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& convexPolygon)
 void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float depth, sf::Vector2f axis, const sf::Vector2f& contactPointOnPolygon)
 {
 	//Note will be leaving out the time factor for velocities since it cancels out in the end.
-	//Denoting circle as A and polygon as B.
+	//Denoting circle as A, polygon as B and contact point as P.
+	sf::Vector2f overlapCorrection = 0.5f * depth * axis;
+
+	c.currentPosition -= overlapCorrection;
+	c.oldPosition -= overlapCorrection;
+	polygon.currentPosition += overlapCorrection;
+	polygon.oldPosition += overlapCorrection;
+
+	sf::Vector2f r_PA = (polygon.currentPosition + contactPointOnPolygon) - c.currentPosition;
+
+	sf::Vector2f v_A = c.currentPosition - c.oldPosition;
+	v_A -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(r_PA);
+
+	sf::Vector2f v_B = polygon.currentPosition - polygon.oldPosition;
+	v_B -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(contactPointOnPolygon);
+
+	float contactVelocity_mag = Engine::dotProduct(v_B - v_A, axis);
+
+	if (contactVelocity_mag > 0.f) {
+		return;
+	}
+
+	float r_PA_PerpDotN = Engine::dotProduct(Engine::perpendicular(r_PA), axis);
+	float r_PB_PerpDotN = Engine::dotProduct(Engine::perpendicular(contactPointOnPolygon), axis);
+
+	float denom = (1.f / c.mass) + (1.f / polygon.mass) +
+		(r_PA_PerpDotN * r_PA_PerpDotN) * (1.f / c.momentOfInertia) +
+		(r_PB_PerpDotN * r_PB_PerpDotN) * (1.f / polygon.momentOfInertia);
+
+	//Modify this to find the lower of the two restitution coefficients
+	float j = -(1.f + c.resCoeff) * contactVelocity_mag;
+	j /= denom;
+
+	sf::Vector2f impulse = j * axis;
+
+	c.oldPosition += impulse * (1.f / c.mass);
+	c.oldAngle += Engine::crossProduct(r_PA, impulse) * (1.f / c.momentOfInertia);
+
+	polygon.oldPosition -= impulse * (1.f / polygon.mass);
+	polygon.oldAngle -= Engine::crossProduct(contactPointOnPolygon, impulse) * (1.f / polygon.momentOfInertia);
+
+	/*
+
 	const sf::Vector2f LinearVelocity_A = (c.currentPosition - c.oldPosition);
 	const sf::Vector2f LinearVelocity_B = (polygon.currentPosition - polygon.oldPosition);
 
@@ -478,13 +563,13 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float de
 	sf::Vector2f r_PA = r_P - c.currentPosition;
 	sf::Vector2f r_PB = r_P - polygon.currentPosition;
 
-	sf::Vector2f r_PA_perp = { r_PA.y, -r_PA.x };
-	sf::Vector2f r_PB_perp = { r_PB.y, -r_PB.x };
+	sf::Vector2f r_PA_perp = Engine::perpendicular(r_PA);
+	sf::Vector2f r_PB_perp = Engine::perpendicular(r_PB);
 	//std::cout << "Distance between contact point and circle centre: " << Engine::findDistance(r_P, c.currentPosition) << std::endl;
 	//std::cout << "Distance between contact point and polygon centre: " << Engine::findDistance(r_P, polygon.currentPosition) << std::endl;
 
-	sf::Vector2f relativeVelocity = (LinearVelocity_B + (polygon.currentAngle - polygon.oldAngle) * (3.14159f / 180.f) * r_PB_perp) -
-									(LinearVelocity_A + (c.currentAngle - c.oldAngle) * (3.14159f / 180.f) * r_PA_perp);
+	sf::Vector2f relativeVelocity = (LinearVelocity_B - (polygon.currentAngle - polygon.oldAngle) * (3.14159f / 180.f) * r_PB_perp) -
+									(LinearVelocity_A - (c.currentAngle - c.oldAngle) * (3.14159f / 180.f) * r_PA_perp);
 
 
 	float j = -(1 + (c.resCoeff > polygon.resCoeff ? c.resCoeff : polygon.resCoeff)) * Engine::dotProduct(relativeVelocity, axis);
@@ -502,7 +587,7 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float de
 
 	return;
 
-
+	*/
 	/*
 		//Note will be leaving out the time factor for velocities since it cancels out in the end.
 	const sf::Vector2f circleVelocity = (c.currentPosition - c.oldPosition);
@@ -562,43 +647,45 @@ sf::Vector2f Engine::closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, s
 	}
 }
 
-void Engine::polygonPolygonDetection(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2)
+void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& polygonB)
 {	
 	float minimumDepth = std::numeric_limits<float>::max();
 	sf::Vector2f minimumAxis;
 	
-	if ((projectionSAT(convexPolygon1, convexPolygon2, minimumDepth, minimumAxis)) ||
-		(projectionSAT(convexPolygon2, convexPolygon1, minimumDepth, minimumAxis))) {
+	std::vector<sf::Vector2f> polygonAVertices = Engine::getPolygonVertexPositions(polygonA);
+	std::vector<sf::Vector2f> polygonBVertices = Engine::getPolygonVertexPositions(polygonB);
+
+	if ((projectionSAT(polygonAVertices, polygonBVertices, minimumDepth, minimumAxis)) ||
+		(projectionSAT(polygonBVertices, polygonAVertices, minimumDepth, minimumAxis))) {
 		return;
 	}
 
 	//Polygons are colliding and the minimum distance in order to separate the two has been found.
 
 	//Check the normal is facing in the correct direction
-	if (dotProduct(convexPolygon2.currentPosition - convexPolygon1.currentPosition, minimumAxis) < 0.f) {
+	if (dotProduct(polygonB.currentPosition - polygonA.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
-
-	polygonPolygonResolution(convexPolygon1, convexPolygon2, minimumDepth, minimumAxis);
+	polygonPolygonResolution(polygonA, polygonB, minimumDepth, minimumAxis);
 }
 
-bool Engine::projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float& minDepth, sf::Vector2f& minAxis)
+bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vector<sf::Vector2f>& polygonBVertices, float& minDepth, sf::Vector2f& minAxis)
 {
 	//SAT implementation to find out whether two polygons have collided
 	//Similar to circle-polygon collision detection
 
-	int polygon1VertexCount = convexPolygon1.body.getPointCount();
-	int polygon2VertexCount = convexPolygon2.body.getPointCount();
+	int polygonAVertexCount = polygonAVertices.size();
+	int polygonBVertexCount = polygonBVertices.size();
 
-	for (int i = 0; i < polygon1VertexCount; ++i) {
+	for (int i = 0; i < polygonAVertexCount; ++i) {
 
 		sf::Vector2f axis;
 		float depth;
 
-		sf::Vector2f vertex1Position = convexPolygon1.getVertexPosition(i);
-		sf::Vector2f vertex2Position = convexPolygon1.getVertexPosition((i + 1) % polygon1VertexCount);
+		sf::Vector2f vertex1Position = polygonAVertices[i];
+		sf::Vector2f vertex2Position = polygonAVertices[(i + 1) % polygonAVertexCount];
 
-		axis = sf::Vector2f(vertex2Position.y - vertex1Position.y, -(vertex2Position.x - vertex1Position.x));
+		axis = Engine::perpendicular(vertex2Position - vertex1Position);
 		axis = Engine::normalise(axis);
 
 		//Project all the vertices of both polygons onto the axis. Find the max and min for both polygons
@@ -608,8 +695,8 @@ bool Engine::projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexP
 		float max2 = max1;
 		float min2 = min1;
 
-		for (int j = 0; j < polygon1VertexCount; ++j) {
-			sf::Vector2f vertexPosition = convexPolygon1.getVertexPosition(j);
+		for (int j = 0; j < polygonAVertexCount; ++j) {
+			sf::Vector2f vertexPosition = polygonAVertices[j];
 			float projection = Engine::dotProduct(vertexPosition, axis);
 
 			if (projection > max1) {
@@ -619,8 +706,8 @@ bool Engine::projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexP
 				min1 = projection;
 			}
 		}
-		for (int j = 0; j < polygon2VertexCount; ++j) {
-			sf::Vector2f vertexPosition = convexPolygon2.getVertexPosition(j);
+		for (int j = 0; j < polygonBVertexCount; ++j) {
+			sf::Vector2f vertexPosition = polygonBVertices[j];
 			float projection = Engine::dotProduct(vertexPosition, axis);
 
 			if (projection > max2) {
@@ -633,6 +720,7 @@ bool Engine::projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexP
 
 		if (max1 < min2 || max2 < min1) {
 			//Not colliding.
+			//std::cout << "not colliding" << std::endl;
 			return true;
 		}
 		//Projections are overlapping
@@ -648,11 +736,110 @@ bool Engine::projectionSAT(ConvexPolygon& convexPolygon1, ConvexPolygon& convexP
 			minAxis = axis;
 		}
 	}
+	//std::cout << "Colliding" << std::endl;
 	return false;
 }
 
-void Engine::polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolygon& convexPolygon2, float depth, sf::Vector2f axis)
+void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& polygonB, float depth, sf::Vector2f axis)
 {
+	//Note will be leaving out the time factor for velocities since it cancels out in the end.
+	//
+
+/*
+* 	vertexPositions = Engine::getBarrierVertexPositions(*this);
+for (int i = 0; i < barrierVertices.size(); ++i) {
+	std::cout << barrierVertices[i].x << " " << barrierVertices[i].y << std::endl;
+	std::cout << "Body Position: " << barrier.body.getPosition().x << " " << barrier.body.getPosition().y << std::endl;
+	std::cout << "position: " << barrier.position.x << " " << barrier.position.y << std::endl;
+}
+*/
+//std::cout << "Collision between polygon and barrier detected" << std::endl;
+
+//sf::Vector2f initialPolygonPosition = polygon.currentPosition;
+
+//std::cout << "Col" << std::endl;
+
+	sf::Vector2f overlapCorrection = 0.5f * axis * depth;
+
+	polygonA.currentPosition -= overlapCorrection;
+	polygonA.oldPosition -= overlapCorrection;
+
+	polygonB.currentPosition += overlapCorrection;
+	polygonB.oldPosition += overlapCorrection;
+
+	std::vector<sf::Vector2f> contactPoints(2);
+	int contactCount = 0;
+
+	Engine::findContactPoints(polygonA, polygonB, contactPoints[0], contactPoints[1], contactCount);
+	if (contactCount > 1) {
+		//std::cout << "Greater than one contact point registered" << std::endl;
+	}
+
+	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
+	sf::RectangleShape temp({ 5.f, 5.f });
+	temp.setPosition(contactPoints[0]);
+	temp.setFillColor(sf::Color::Red);
+	Engine::objectsToDraw.push_back(temp);
+	//std::cout << "Contact point registered." << std::endl;
+
+	std::vector<sf::Vector2f> r_PA_List(2);
+	std::vector<sf::Vector2f> r_PB_List(2);
+	std::vector<sf::Vector2f> impulseList(2);
+
+	for (int i = 0; i < contactCount; i++)
+	{
+		sf::Vector2f r_PA = contactPoints[i] - polygonA.currentPosition;
+		sf::Vector2f r_PB = contactPoints[i] - polygonB.currentPosition;
+
+		r_PA_List[i] = r_PA;
+		r_PB_List[i] = r_PB;
+
+		sf::Vector2f v_A = (polygonA.currentPosition - polygonA.oldPosition);
+		v_A -= (polygonA.currentAngle - polygonA.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(r_PA);
+
+		sf::Vector2f v_B = (polygonB.currentPosition - polygonB.oldPosition);
+		v_B -= (polygonB.currentAngle - polygonB.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(r_PB);
+
+		float contactVelocity_mag = Engine::dotProduct(v_B - v_A, axis);
+
+		if (contactVelocity_mag > 0.f)
+		{
+			continue;
+		}
+
+		float r_PA_PerpDotN = Engine::dotProduct(Engine::perpendicular(r_PA), axis);
+		float r_PB_PerpDotN = Engine::dotProduct(Engine::perpendicular(r_PB), axis);
+
+		float denom = (1.f / polygonA.mass) + (1.f / polygonB.mass) +
+			(r_PA_PerpDotN * r_PA_PerpDotN) * (1.f / polygonA.momentOfInertia) +
+			(r_PB_PerpDotN * r_PB_PerpDotN) * (1.f / polygonB.momentOfInertia);
+
+		float j = -(1.f + polygonA.resCoeff) * contactVelocity_mag;
+		j /= denom;
+		j /= contactCount;
+
+		sf::Vector2f impulse = j * axis;
+		impulseList[i] = impulse;
+	}
+
+	for (int i = 0; i < contactCount; i++)
+	{
+		sf::Vector2f impulse = impulseList[i];
+		sf::Vector2f r_PA = r_PA_List[i];
+		sf::Vector2f r_PB = r_PB_List[i];
+
+		polygonA.oldPosition += impulse * (1.f / polygonA.mass);
+		polygonA.oldAngle += Engine::crossProduct(r_PA, impulse) * (1.f / polygonA.momentOfInertia) * (180.f / 3.141592f);
+
+		polygonB.oldPosition -= impulse * (1.f / polygonB.mass);
+		polygonB.oldAngle -= Engine::crossProduct(r_PB, impulse) * (1.f / polygonB.momentOfInertia) * (180.f / 3.141592f);
+	}
+
+	return;
+
+	/*
+
+	//std::cout << "Collision detected" << std::endl;
 	//Note will be leaving out the time factor for velocities since it cancels out in the end.
 	const sf::Vector2f polygon1Velocity = (convexPolygon1.currentPosition - convexPolygon1.oldPosition);
 	const sf::Vector2f polygon2Velocity = (convexPolygon2.currentPosition - convexPolygon2.oldPosition);
@@ -676,6 +863,7 @@ void Engine::polygonPolygonResolution(ConvexPolygon& convexPolygon1, ConvexPolyg
 	convexPolygon2.oldPosition -= (((j / (1.f / convexPolygon2.mass)) * axis) - 0.5f * depth * axis);
 
 	return;
+	*/
 }
 
 sf::Vector2f Engine::closestPointOnLineSegment(const sf::Vector2f& circlePos, const sf::Vector2f& vertex1Pos, const sf::Vector2f& vertex2Pos)
@@ -715,9 +903,513 @@ sf::Vector2f Engine::findContactPoint(Circle& c, ConvexPolygon& convexPolygon)
 	return contactPoint;
 }
 
+void Engine::findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB, sf::Vector2f& contactPoint1, sf::Vector2f& contactPoint2, int& contactCount)
+{
+	contactPoint1 = { -1.f, -1.f };
+	contactPoint2 = { -1.f, -1.f };
+
+	float minDist = std::numeric_limits<float>::max();
+	int polygonAVertexCount = polygonA.body.getPointCount();
+	int polygonBVertexCount = polygonB.body.getPointCount();
+	std::vector<sf::Vector2f> polygonAVertices(polygonAVertexCount);
+
+	for (int i = 0; i < polygonAVertexCount; ++i) {
+		polygonAVertices[i] = polygonA.getVertexPosition(i);
+	}
+
+	for (int i = 0; i < polygonAVertexCount; i++)
+	{
+		sf::Vector2f point = polygonAVertices[i];
+
+		for (int j = 0; j < polygonBVertexCount; j++)
+		{
+			sf::Vector2f v1 = polygonB.getVertexPosition(j);
+			sf::Vector2f v2 = polygonB.getVertexPosition((j + 1) % polygonBVertexCount);
+
+			sf::Vector2f contactPoint = closestPointOnLineSegment(point, v1, v2);
+			float dist = Engine::findDistance(contactPoint, point);
+
+			if (Engine::nearlyEqual(dist, minDist))
+			{
+				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
+					contactPoint2 = contactPoint;
+					contactCount = 2;
+				}
+			}
+			else if (dist < minDist)
+			{
+				minDist = dist;
+				contactCount = 1;
+				contactPoint1 = contactPoint;
+			}
+		}
+	}
+
+	for (int i = 0; i < polygonBVertexCount; i++)
+	{
+		sf::Vector2f point = polygonB.getVertexPosition(i);
+
+		for (int j = 0; j < polygonAVertexCount; j++)
+		{
+			sf::Vector2f v1 = polygonAVertices[j];
+			sf::Vector2f v2 = polygonAVertices[(j + 1) % polygonAVertexCount];
+
+			sf::Vector2f contactPoint = Engine::closestPointOnLineSegment(point, v1, v2);
+			float dist = Engine::findDistance(contactPoint, point);
+
+			if (Engine::nearlyEqual(dist, minDist))
+			{
+				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
+					contactPoint2 = contactPoint;
+					contactCount = 2;
+				}
+			}
+
+			else if (dist < minDist)
+			{
+				minDist = dist;
+				contactCount = 1;
+				contactPoint1 = contactPoint;
+			}
+		}
+	}
+	return;
+}
+
+void Engine::findContactPoints(ConvexPolygon& polygon, rectBarrier& barrier, sf::Vector2f& contactPoint1, sf::Vector2f& contactPoint2, int& contactCount)
+{
+	contactPoint1 = {-1.f, -1.f};
+	contactPoint2 = { -1.f, -1.f };
+
+	float minDist = std::numeric_limits<float>::max();
+	int polygonVertexCount = polygon.body.getPointCount();
+	int barrierVertexCount = 4;
+	std::vector<sf::Vector2f> polygonVertices(polygonVertexCount);
+
+	for (int i = 0; i < polygonVertexCount; ++i) {
+		polygonVertices[i] = polygon.getVertexPosition(i);
+	}
+
+	for (int i = 0; i < polygonVertexCount; i++)
+	{
+		sf::Vector2f point = polygonVertices[i];
+
+		for (int j = 0; j < barrierVertexCount; j++)
+		{
+			sf::Vector2f v1 = barrier.vertexPositions[j];
+			sf::Vector2f v2 = barrier.vertexPositions[(j + 1) % barrierVertexCount];
+
+			sf::Vector2f contactPoint = closestPointOnLineSegment(point, v1, v2);
+			float dist = Engine::findDistance(contactPoint, point);
+
+			if (Engine::nearlyEqual(dist, minDist))
+			{
+				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
+					contactPoint2 = contactPoint;
+					contactCount = 2;
+				}
+			}
+			else if (dist < minDist)
+			{
+				minDist = dist;
+				contactCount = 1;
+				contactPoint1 = contactPoint;
+			}
+		}
+	}
+
+	for (int i = 0; i < barrierVertexCount; i++)
+	{
+		sf::Vector2f point = barrier.vertexPositions[i];
+
+		for (int j = 0; j < polygonVertexCount; j++)
+		{
+			sf::Vector2f v1 = polygonVertices[j];
+			sf::Vector2f v2 = polygonVertices[(j + 1) % polygonVertexCount];
+
+			sf::Vector2f contactPoint = Engine::closestPointOnLineSegment(point, v1, v2);
+			float dist = Engine::findDistance(contactPoint, point);
+
+			if (Engine::nearlyEqual(dist, minDist))
+			{
+				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
+					contactPoint2 = contactPoint;
+					contactCount = 2;
+				}
+			}
+
+			else if (dist < minDist)
+			{
+				minDist = dist;
+				contactCount = 1;
+				contactPoint1 = contactPoint;
+			}
+		}
+	}
+}
+
+std::pair<sf::Vector2f, sf::Vector2f> Engine::findReferenceEdge(ConvexPolygon& polygonA, ConvexPolygon& polygonB, sf::Vector2f& axis)
+{
+	float maxProjection = std::numeric_limits<float>::min();
+	std::pair<sf::Vector2f, sf::Vector2f> bestEdge;
+	int polygonAVertexCount = polygonA.body.getPointCount();
+
+	for (int i = 0; i < polygonAVertexCount; ++i) {
+		sf::Vector2f v1 = polygonA.getVertexPosition(i);
+		sf::Vector2f v2 = polygonA.getVertexPosition((i + 1) % polygonAVertexCount);
+
+		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
+
+		if (tempProjection > maxProjection) {
+			maxProjection = tempProjection;
+			bestEdge = { v1, v2 };
+		}
+	}
+
+	int polygonBVertexCount = polygonB.body.getPointCount();
+
+	for (int i = 0; i < polygonBVertexCount; ++i) {
+		sf::Vector2f v1 = polygonB.getVertexPosition(i);
+		sf::Vector2f v2 = polygonB.getVertexPosition((i + 1) % polygonBVertexCount);
+
+		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
+
+		if (tempProjection > maxProjection) {
+			maxProjection = tempProjection;
+			bestEdge = { v1, v2 };
+		}
+	}
+
+	return bestEdge;
+}
+
+std::pair<sf::Vector2f, sf::Vector2f> Engine::findReferenceEdge(ConvexPolygon& polygon, rectBarrier& barrier, sf::Vector2f& axis)
+{
+	/*
+	* Get rid of these two functions by taking in vertices as input. Less repeated code.
+	*/
+	float maxProjection = std::numeric_limits<float>::min();
+	std::pair<sf::Vector2f, sf::Vector2f> bestEdge;
+	int polygonVertexCount = polygon.body.getPointCount();
+
+	for (int i = 0; i < polygonVertexCount; ++i) {
+		sf::Vector2f v1 = polygon.getVertexPosition(i);
+		sf::Vector2f v2 = polygon.getVertexPosition((i + 1) % polygonVertexCount);
+
+		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
+
+		if (tempProjection > maxProjection) {
+			maxProjection = tempProjection;
+			bestEdge = { v1, v2 };
+		}
+	}
+
+	int barrierVertexCount = barrier.body.getPointCount();
+
+	for (int i = 0; i < barrierVertexCount; ++i) {
+		sf::Vector2f v1 = barrier.vertexPositions[i];
+		sf::Vector2f v2 = barrier.vertexPositions[(i + 1) % barrierVertexCount];
+
+		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
+
+		if (tempProjection > maxProjection) {
+			maxProjection = tempProjection;
+			bestEdge = { v1, v2 };
+		}
+	}
+
+	return bestEdge;
+}
+
+void Engine::polygonBarrierDetection(ConvexPolygon& polygon, rectBarrier& barrier)
+{
+	//std::cout << "Checking" << std::endl;
+	float minimumDepth = std::numeric_limits<float>::max();
+	sf::Vector2f minimumAxis;
+
+	sf::Vector2f barrierPosition = barrier.position;
+
+	std::vector<sf::Vector2f> polygonVertices = Engine::getPolygonVertexPositions(polygon);
+
+	if ((projectionSAT(polygonVertices, barrier.vertexPositions, minimumDepth, minimumAxis)) ||
+		(projectionSAT(barrier.vertexPositions, polygonVertices, minimumDepth, minimumAxis))) {
+		//std::cout << "Polygon position: " << polygon.currentPosition.x << " " << polygon.currentPosition.y << std::endl;
+		//std::cout << "Barrier position: " << barrier.position.x << " " << barrier.position.y << std::endl;
+		//polygon.body.setFillColor(sf::Color::Green);
+		return;
+	}
+
+	//Polygons are colliding and the minimum distance in order to separate the two has been found.
+
+	//Check the normal is facing in the correct direction
+	if (dotProduct(barrierPosition - polygon.currentPosition, minimumAxis) < 0.f) {
+		minimumAxis = -minimumAxis;
+	}
+	//std::cout << "Barrier polygon collision registered." << std::endl;
+	//polygon.body.setFillColor(sf::Color::Red);
+	polygonBarrierResolution(polygon, barrier, minimumDepth, minimumAxis);
+}
+
+void Engine::polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barrier, const float& depth, const sf::Vector2f& axis)
+{
+	//Note will be leaving out the time factor for velocities since it cancels out in the end.
+	
+	/*
+	* 	vertexPositions = Engine::getBarrierVertexPositions(*this);
+	for (int i = 0; i < barrierVertices.size(); ++i) {
+		std::cout << barrierVertices[i].x << " " << barrierVertices[i].y << std::endl;
+		std::cout << "Body Position: " << barrier.body.getPosition().x << " " << barrier.body.getPosition().y << std::endl;
+		std::cout << "position: " << barrier.position.x << " " << barrier.position.y << std::endl;
+	}
+	*/
+	//std::cout << "Collision between polygon and barrier detected" << std::endl;
+
+	//sf::Vector2f initialPolygonPosition = polygon.currentPosition;
+
+	//std::cout << "Col" << std::endl;
+
+	polygon.currentPosition -= (depth * axis);
+	polygon.oldPosition -= (depth * axis);
+
+	std::vector<sf::Vector2f> contactPoints(2);
+	int contactCount = 0;
+
+	Engine::findContactPoints(polygon, barrier, contactPoints[0], contactPoints[1], contactCount);
+	if (contactCount > 1) {
+		//std::cout << "Greater than one contact point registered" << std::endl;
+	}
+
+	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
+	sf::RectangleShape temp({ 5.f, 5.f });
+	temp.setPosition(contactPoints[0]);
+	temp.setFillColor(sf::Color::Red);
+	Engine::objectsToDraw.push_back(temp);
+	//std::cout << "Contact point registered." << std::endl;
+
+	std::vector<sf::Vector2f> raList(2);
+	std::vector<sf::Vector2f> impulseList(2);
+
+	for (int i = 0; i < contactCount; i++)
+	{
+		sf::Vector2f polygonToContactPoint = contactPoints[i] - polygon.currentPosition;
+
+		raList[i] = polygonToContactPoint;
+
+		sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
+
+		polygonVelocity -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(polygonToContactPoint);
+
+		float contactVelocityMag = Engine::dotProduct(-polygonVelocity, axis);
+
+		if (contactVelocityMag > 0.f)
+		{
+			continue;
+		}
+		
+		float raPerpDotN = Engine::dotProduct(Engine::perpendicular(polygonToContactPoint), axis);
+
+		float denom = (1.f / polygon.mass) + 0.f +
+			(raPerpDotN * raPerpDotN) * (1.f / polygon.momentOfInertia) +
+			0.f;
+
+		float j = -(1.f + polygon.resCoeff) * contactVelocityMag;
+		j /= denom;
+		j /= contactCount;
+
+		sf::Vector2f impulse = j * axis;
+		impulseList[i] = impulse;
+	}
+
+	for (int i = 0; i < contactCount; i++)
+	{
+		sf::Vector2f impulse = impulseList[i];
+		sf::Vector2f ra = raList[i];
+
+		polygon.oldPosition += impulse * (1.f / polygon.mass);
+		polygon.oldAngle += Engine::crossProduct(ra, impulse) * (1.f / polygon.momentOfInertia) * (180.f / 3.141592f);
+	}
+
+	//Adjust old position by the same amount current position was.
+	//polygon.oldPosition -= depth * axis;
+
+	//std::cout << "Polygon position: " << polygon.currentPosition.x << " " << polygon.currentPosition.y << std::endl;
+	//std::cout << "Contact point 1: " << contactPoints[0].x << " " << contactPoints[0].y << std::endl;
+	//std::cout << "Contact point 2: " << contactPoints[1].x << " " << contactPoints[1].y << std::endl;
+	//std::cout << "Contact point distance to polygon position: " << Engine::findDistance(contactPoint1, polygon.currentPosition) << std::endl;
+
+	return;
+
+
+
+	/*
+	sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
+
+	polygon.currentPosition -= (depth * axis);
+
+	sf::Vector2f contactPoint1(-1.f, -1.f);
+	sf::Vector2f contactPoint2(-1.f, -1.f);
+	int contactCount = 0;
+
+	Engine::findContactPoints(polygon, barrier, contactPoint1, contactPoint2, contactCount);
+
+	sf::Vector2f polygonToContactPoint = contactPoint1 - polygon.currentPosition;
+
+	//Add rotational component to the velocity.
+	polygonVelocity += (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(polygonToContactPoint);
+
+	//barrier is not moving
+	sf::Vector2f relativeVelocity = - polygonVelocity;
+
+
+	float contactVelocityMag = Engine::dotProduct(relativeVelocity, axis);
+
+	
+	if (contactVelocityMag > 0.f)
+	{
+		polygon.oldPosition -= (depth * axis);
+		return;
+	}
+	
+	float raPerpDotN = Engine::dotProduct(Engine::perpendicular(polygonToContactPoint), axis);
+
+	float denom = (1.f / polygon.mass) + 0.f +
+		(raPerpDotN * raPerpDotN) * (1.f / polygon.momentOfInertia) +
+		0.f;
+
+	float j = -(1.f + polygon.resCoeff) * contactVelocityMag;
+	j /= denom;
+
+	sf::Vector2f impulse = j * axis;
+	
+	polygon.oldPosition -= depth * axis;
+	polygon.oldPosition += impulse * (1.f / polygon.mass);
+	polygon.oldAngle += Engine::crossProduct(polygonToContactPoint, impulse) * (1.f / polygon.momentOfInertia) * (180.f / 3.141592f);
+
+	//std::cout << "Polygon position: " << polygon.currentPosition.x << " " << polygon.currentPosition.y << std::endl;
+	//std::cout << "Contact point 1: " << contactPoint1.x << " " << contactPoint1.y << std::endl;
+	//std::cout << "Contact point 2: " << contactPoint2.x << " " << contactPoint2.y << std::endl;
+	//std::cout << "Contact point distance to polygon position: " << Engine::findDistance(contactPoint1, polygon.currentPosition) << std::endl;
+
+	return;
+	*/
+
+	/*
+	
+	const sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
+
+	sf::Vector2f contactPoint1(-1.f, -1.f);
+	sf::Vector2f contactPoint2(-1.f, -1.f);
+
+	Engine::findContactPoints(polygon, barrier, contactPoint1, contactPoint2);
+	std::cout << "Polygon position: " << polygon.currentPosition.x << " " << polygon.currentPosition.y << std::endl;
+	std::cout << "Contact point 1: " << contactPoint1.x << " " << contactPoint1.y << std::endl;
+	std::cout << "Contact point 2: " << contactPoint2.x << " " << contactPoint2.y << std::endl;
+
+	float normRelativeVelocity = -1.f * Engine::dotProduct(polygonVelocity, axis);
+
+	float j;
+	if (normRelativeVelocity > 0.f) {
+		j = 0.f;
+	}
+	else {
+		j = -(1 + polygon.resCoeff) * normRelativeVelocity / ((1.f / polygon.mass) + (0.f));
+	}
+
+	//Separate the two polygons. It should be noted axis MUST be normalised here.
+	polygon.currentPosition -= (depth * axis);
+
+	polygon.oldPosition += (((j / (1.f / polygon.mass)) * axis) - depth * axis);
+
+	return;
+	
+	*/
+
+	/*
+	std::cout << "Executed" << std::endl;
+	const sf::Vector2f velocity = polygon.currentPosition - polygon.oldPosition;
+
+	sf::Vector2f velocity_parallel = Engine::dotProduct(velocity, axis) * axis;
+	sf::Vector2f velocity_perp = velocity - velocity_parallel;
+
+	velocity_parallel *= -1.f * polygon.resCoeff;
+
+	polygon.currentPosition -= depth * axis;
+
+	polygon.oldPosition = polygon.currentPosition - (velocity_perp + velocity_parallel);
+	//polygon.oldPosition += depth * axis;
+
+	return;
+	*/
+}
+
+void Engine::circleBarrierDetection(Circle& c, rectBarrier& b)
+{
+	sf::Vector2f closestPoint;
+	int barrierVertexCount = b.body.getPointCount();
+
+	for (int i = 0; i < barrierVertexCount; ++i) {
+		sf::Vector2f tempVector = Engine::closestPointOnLineSegment(c.currentPosition, b.vertexPositions[i],
+			b.vertexPositions[(i + 1) % barrierVertexCount]);
+		float tempDistance = Engine::findDistance(c.currentPosition, tempVector);
+
+		if (tempDistance < c.size) {
+			sf::Vector2f axis = tempVector - c.currentPosition;
+			axis = Engine::normalise(axis);
+
+			//Check the normal is facing in the correct direction
+			if (dotProduct(b.position - c.currentPosition, axis) < 0.f) {
+				axis = { -axis.x, -axis.y };
+			}
+			//std::cout << "Distance being passed: " << tempDistance << std::endl;
+			Engine::circleBarrierResolution(c, b, (c.size - tempDistance), axis, tempVector - b.position);
+		}
+	}
+}
+
+void Engine::circleBarrierResolution(Circle& c, rectBarrier& b, const float& depth, const sf::Vector2f& axis, const sf::Vector2f& contactPointOnBarrier)
+{
+	//Note will be leaving out the time factor for velocities since it cancels out in the end.
+	//Denoting circle as A and barrier as B.
+	c.currentPosition -= (depth * axis);
+	c.oldPosition -= (depth * axis);
+
+	sf::Vector2f circleToContactPoint = (contactPointOnBarrier + b.position) - c.currentPosition;
+
+	sf::Vector2f circleVelocity = (c.currentPosition - c.oldPosition);
+	circleVelocity -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(circleToContactPoint);
+
+	float contactVelocityMag = Engine::dotProduct(-circleVelocity, axis);
+
+	if (contactVelocityMag > 0.f) {
+		return;
+	}
+
+	float raPerpDotN = Engine::dotProduct(Engine::perpendicular(circleToContactPoint), axis);
+
+	float denom = (1.f / c.mass) + 0.f +
+		(raPerpDotN * raPerpDotN) * (1.f / c.momentOfInertia) +
+		0.f;
+
+
+	float j = -(1 + c.resCoeff) * contactVelocityMag;
+	j /= denom;
+
+	sf::Vector2f impulse = j * axis;
+
+	c.oldPosition += impulse * (1.f / c.mass);
+	c.oldAngle += Engine::crossProduct(circleToContactPoint, impulse) * (1.f / c.momentOfInertia) * (180.f / 3.141592f);
+
+	return;
+}
+
 float Engine::dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2)
 {
 	return ((v1.x * v2.x) + (v1.y * v2.y));
+}
+
+float Engine::crossProduct(const sf::Vector2f& v1, const sf::Vector2f& v2)
+{
+	return v1.x * v2.y - v1.y * v2.x;
 }
 
 sf::Vector2f Engine::normalise(const sf::Vector2f& v)
@@ -728,6 +1420,46 @@ sf::Vector2f Engine::normalise(const sf::Vector2f& v)
 float Engine::findDistance(const sf::Vector2f& v1, const sf::Vector2f& v2)
 {
 	return pow(((v2.x - v1.x) * (v2.x - v1.x)) + ((v2.y - v1.y) * (v2.y - v1.y)), 0.5f);
+}
+
+sf::Vector2f Engine::perpendicular(const sf::Vector2f& v)
+{
+	return { v.y, -v.x };
+}
+
+bool Engine::nearlyEqual(const float a1, const float a2)
+{
+	float verySmallAmount = 0.1f;
+	return abs(a1 - a2) < verySmallAmount;
+}
+
+bool Engine::nearlyEqual(const sf::Vector2f& v1, const sf::Vector2f& v2)
+{
+	float verySmallAmount = 0.1f;
+	return Engine::findDistance(v1, v2) < verySmallAmount;
+}
+
+std::vector<sf::Vector2f> Engine::getPolygonVertexPositions(ConvexPolygon& polygon)
+{
+	int vertexCount = polygon.body.getPointCount();
+	std::vector<sf::Vector2f> vertexPositions(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertexPositions[i] = polygon.getVertexPosition(i);
+		//std::cout << polygon.getVertexPosition(i).x << " " << polygon.getVertexPosition(i).y << std::endl;
+	}
+	return vertexPositions;
+}
+
+std::vector<sf::Vector2f> Engine::getBarrierVertexPositions(rectBarrier& barrier)
+{
+	int vertexCount = barrier.body.getPointCount();
+	std::vector<sf::Vector2f> vertexPositions(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertexPositions[i] = barrier.getVertexPosition(i);
+	}
+	return vertexPositions;
 }
 
 void Engine::update(float dt)
@@ -805,10 +1537,16 @@ void Engine::render()
 		spring.render(*window);
 	}
 
-	upperBarrier.renderBarrier(*window);
-	rightBarrier.renderBarrier(*window);
-	lowerBarrier.renderBarrier(*window);
-	leftBarrier.renderBarrier(*window);
+	for (rectBarrier& barrier : rectBarriers) {
+		barrier.renderBarrier(*window);
+	}
+
+	for (sf::RectangleShape object : Engine::objectsToDraw) {
+		//std::cout << object.getPosition().x << std::endl;
+		window->draw(object);
+	}
+
+	objectsToDraw.clear();
 
 	window->draw(fpstext);
 	window->draw(entitiesSpawnedText);
@@ -881,6 +1619,11 @@ void Circle::updatePosition()
 	body.setRotation(currentAngle);
 }
 
+void Circle::detectBarrierCollision(rectBarrier& b)
+{
+	Engine::circleBarrierDetection(*this, b);
+}
+
 void Circle::entityBarrierCollision()
 {
 	const sf::Vector2f displacement = this->currentPosition - this->oldPosition;
@@ -941,7 +1684,7 @@ Square::Square()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
 	oldPosition = currentPosition;
-
+	
 	currentAngle = 0.f;
 	oldAngle = 0.f;
 
@@ -957,7 +1700,7 @@ Square::Square()
 
 	color = sf::Color::Green;
 	body.setFillColor(color);
-	resCoeff = 0.8f;
+	resCoeff = 0.5f;
 
 	force = { 0.f, 0.f };
 }
@@ -968,7 +1711,7 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 	oldPosition = currentPosition;
 
 	currentAngle = 0.f;
-	oldAngle = 0.4f;
+	oldAngle = -0.4f;
 
 	mass = inputMass;
 	size = inputSize;
@@ -985,7 +1728,7 @@ Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Colo
 
 	color = inputColor;
 	body.setFillColor(color);
-	resCoeff = 0.8f;
+	resCoeff = 0.5f;
 
 	force = { 0.f, 0.f };
 	/*
@@ -1005,8 +1748,15 @@ void Square::updatePosition()
 	//body.rotate(0.4f);
 }
 
+void Square::detectBarrierCollision(rectBarrier& b)
+{
+	Engine::polygonBarrierDetection(*this, b);
+}
+
 void Square::entityBarrierCollision()
 {
+	//Engine::polygonBarrierDetection(*this, upperBarri)
+	
 	const sf::Vector2f displacement = this->currentPosition - this->oldPosition;
 
 	if (this->currentPosition.y > lowerBarrier_position.y - 0.5f * this->size) {
@@ -1078,8 +1828,13 @@ rectBarrier::rectBarrier()
 	body.setFillColor(color);
 	size = sf::Vector2f(10.f, 10.f);
 	body.setSize(size);
+
+	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
+
 	position = sf::Vector2f(0.f, 0.f);
 	body.setPosition(position);
+
+	vertexPositions = Engine::getBarrierVertexPositions(*this);
 }
 
 rectBarrier::rectBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vector2f inputPosition)
@@ -1088,8 +1843,13 @@ rectBarrier::rectBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vecto
 	body.setFillColor(color);
 	size = inputSize;
 	body.setSize(size);
+
 	position = inputPosition;
 	body.setPosition(position);
+
+	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
+
+	vertexPositions = Engine::getBarrierVertexPositions(*this);
 }
 
 rectBarrier::~rectBarrier() 
@@ -1103,12 +1863,35 @@ void rectBarrier::setBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::V
 	body.setFillColor(color);
 	size = inputSize;
 	body.setSize(size);
+
 	position = inputPosition;
 	body.setPosition(position);
+
+	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
+
+	vertexPositions = Engine::getBarrierVertexPositions(*this);
+}
+
+sf::Vector2f rectBarrier::getVertexPosition(int vertex)
+{
+	//For rectangle shape, regardless of setOrigin, getPoint for 0th vertex will always give 0,0.
+	sf::Vector2f nonRotatedPosition = body.getPoint(vertex) - size * 0.5f;
+	float angle = (3.14159 / 180.f) * body.getRotation();
+
+	float x = (nonRotatedPosition.x * std::cos(angle)) - (nonRotatedPosition.y * std::sin(angle));
+	float y = (nonRotatedPosition.x * std::sin(angle)) + (nonRotatedPosition.y * std::cos(angle));
+
+	return { x + position.x, y + position.y};
+}
+
+void rectBarrier::detectPolygonCollision(ConvexPolygon& polygon)
+{
+	Engine::polygonBarrierDetection(polygon, *this);
 }
 
 void rectBarrier::renderBarrier(sf::RenderWindow& target)
 {
+	//body.rotate(0.4f);
 	target.draw(body);
 }
 
