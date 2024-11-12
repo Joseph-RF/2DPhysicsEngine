@@ -17,6 +17,10 @@ extern int cell_size;
 extern int cell_number_x;
 extern int cell_number_y;
 
+extern int counter;
+extern float float_upperLimit;
+extern float float_lowerLimit;
+
 extern sf::Vector2f lowerBarrier_position;
 extern sf::Vector2f upperBarrier_position;
 extern sf::Vector2f rightBarrier_position;
@@ -49,7 +53,6 @@ public:
 
 	virtual void updatePosition() = 0;
 	virtual void detectBarrierCollision(rectBarrier& b) = 0;
-	virtual void entityBarrierCollision() = 0;
 	virtual void detectEntityCollision(Entity& e) = 0;
 	virtual void detectCircleCollision(Circle& c) = 0;
 	virtual void detectSquareCollision(Square& s) = 0;
@@ -70,7 +73,6 @@ public:
 
 	void updatePosition() override;
 	void detectBarrierCollision(rectBarrier& b) override;
-	void entityBarrierCollision() override;
 	void detectEntityCollision(Entity& e) override;
 	void detectCircleCollision(Circle& c) override;
 	void detectSquareCollision(Square& s) override;
@@ -96,7 +98,6 @@ public:
 
 	void updatePosition() override;
 	void detectBarrierCollision(rectBarrier& b) override;
-	void entityBarrierCollision() override;
 	void detectEntityCollision(Entity& e) override;
 	void detectCircleCollision(Circle& c) override;
 	void detectSquareCollision(Square& s) override;
