@@ -31,6 +31,7 @@ class Circle;
 class ConvexPolygon;
 class Square;
 class Triangle;
+class Hexagon;
 class rectBarrier;
 
 class Entity
@@ -139,6 +140,28 @@ public:
 	void renderEntity(sf::RenderWindow& target) override;
 };
 
+class Hexagon : public ConvexPolygon
+{
+public:
+	float size;
+
+	Hexagon();
+	Hexagon(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
+	~Hexagon();
+
+	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
+
+	void updatePosition() override;
+	void detectBarrierCollision(rectBarrier& b) override;
+	void detectEntityCollision(Entity& e) override;
+	void detectCircleCollision(Circle& c) override;
+	void detectPolygonCollision(ConvexPolygon& polygon) override;
+
+	sf::Vector2f getVertexPosition(int vertex) override;
+
+	void renderEntity(sf::RenderWindow& target) override;
+};
+
 class rectBarrier
 {
 public:
@@ -218,6 +241,7 @@ public:
 
 	sf::Text fpstext;
 	sf::Text entitiesSpawnedText;
+	sf::Text shapeButtonsText;
 
 	void initVariables();
 	void initWindow();
@@ -228,6 +252,7 @@ public:
 	void addCircle();
 	void addSquare();
 	void addTriangle();
+	void addHexagon();
 	void addSpring();
 	void addSponge();
 
@@ -281,6 +306,9 @@ public:
 
 	static std::vector<sf::Vector2f> getPolygonVertexPositions(ConvexPolygon& polygon);
 	static std::vector<sf::Vector2f> getBarrierVertexPositions(rectBarrier& barrier);
+
+	sf::Color generateVividColour();
+	sf::Color hsvToRgb(int h, float s, float v);
 
 	void update(float dt);
 	void updateEntities();

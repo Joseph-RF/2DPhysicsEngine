@@ -75,6 +75,12 @@ void Engine::initText()
 	entitiesSpawnedText.setCharacterSize(24);
 	entitiesSpawnedText.setFillColor(sf::Color::Red);
 	entitiesSpawnedText.setPosition(f_windowWidth * 0.75f, 0.0f);
+
+	shapeButtonsText.setFont(font);
+	shapeButtonsText.setCharacterSize(24);
+	shapeButtonsText.setFillColor(sf::Color::White);
+	shapeButtonsText.setPosition(50.f, 30.f);
+	shapeButtonsText.setString("F1: Circle    F2: Square    F3: Triangle    F4: Hexagon");
 }
 
 void Engine::initScene()
@@ -100,22 +106,25 @@ void Engine::initWindow()
 
 void Engine::addCircle()
 {
-	sf::Color colour = sf::Color(rand() % 100 + 155, rand() % 100 + 155, rand() % 100 + 155);
-	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, colour));
+	Entities.emplace_back(new Circle(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 10.f, generateVividColour()));
 	entitiesSpawned++;
 }
 
 void Engine::addSquare()
 {
-	sf::Color colour = sf::Color(rand() % 100 + 155, rand() % 100 + 155, rand() % 100 + 155);
-	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, colour));
+	Entities.emplace_back(new Square(sf::Vector2f(rand() % 1000 + 100, 50.f), 1.f, 20.f, generateVividColour()));
 	entitiesSpawned++;
 }
 
 void Engine::addTriangle()
 {
-	sf::Color colour = sf::Color(rand() % 100 + 155, rand() % 100 + 155, rand() % 100 + 155);
-	Entities.emplace_back(new Triangle(sf::Vector2f(rand() % 1000 + 100, 100.f), 1.f, 20.f, colour));
+	Entities.emplace_back(new Triangle(sf::Vector2f(rand() % 1000 + 100, 100.f), 1.f, 20.f, generateVividColour()));
+	entitiesSpawned++;
+}
+
+void Engine::addHexagon()
+{
+	Entities.emplace_back(new Hexagon(sf::Vector2f(rand() % 1000 + 100, 100.f), 1.f, 20.f, generateVividColour()));
 	entitiesSpawned++;
 }
 
@@ -156,15 +165,17 @@ void Engine::pollEvents()
 		case sf::Event::KeyPressed:
 			if (e.key.code == sf::Keyboard::Escape) {
 				window->close();
-			} else if (e.key.code == sf::Keyboard::C) {
+			} else if (e.key.code == sf::Keyboard::F1) {
 				addCircle();
-			} else if (e.key.code == sf::Keyboard::S) {
+			} else if (e.key.code == sf::Keyboard::F2) {
 				addSquare();
-			} else if (e.key.code == sf::Keyboard::L) {
+			} else if (e.key.code == sf::Keyboard::F3) {
 				addTriangle();
-			} else if (e.key.code == sf::Keyboard::R) {
+			} else if (e.key.code == sf::Keyboard::F4) {
+				addHexagon();
+			} else if (e.key.code == sf::Keyboard::F5) {
 				addSpring();
-			} else if (e.key.code == sf::Keyboard::T) {
+			} else if (e.key.code == sf::Keyboard::F6) {
 				addSponge();
 			}
 			break;
@@ -1197,6 +1208,68 @@ std::vector<sf::Vector2f> Engine::getBarrierVertexPositions(rectBarrier& barrier
 	return vertexPositions;
 }
 
+sf::Color Engine::generateVividColour()
+{
+	int hue = (rand() % 360);
+	float saturation = (rand() % 25) + 75.f;
+	saturation /= 100;
+	float value = (rand() % 25) + 75.f;
+	value /= 100;
+
+	return hsvToRgb(hue, saturation, value);
+}
+
+sf::Color Engine::hsvToRgb(int h, float s, float v)
+{
+	float c = v * s;
+	float f = ((h / 60 ) % 2) - 1.f;
+	if (f < 0.f) { f = -f; }
+
+	float x = c * (1.f - f);
+	float m = v - c;
+
+	float R_1 = 0.f;
+	float G_1 = 0.f;
+	float B_1 = 0.f;
+
+	if (h < 180.f) {
+		if (h < 120.f) {
+			if (h < 60.f) {
+				R_1 = c;
+				G_1 = x;
+			}
+			else {
+				R_1 = x;
+				G_1 = c;
+			}
+		}
+		else {
+			G_1 = c;
+			B_1 = x;
+		}
+	}
+	else {
+		if (h < 300.f) {
+			if (h < 240.f) {
+				G_1 = x;
+				B_1 = c;
+			}
+			else {
+				R_1 = x;
+				B_1 = c;
+			}
+		}
+		else {
+			R_1 = c;
+			B_1 = x;
+		}
+	}
+	sf::Uint32 R = (R_1 + m) * 255;
+	sf::Uint32 G = (G_1 + m) * 255;
+	sf::Uint32 B = (B_1 + m) * 255;
+	return sf::Color(R, G, B, 255);
+}
+
 void Engine::update(float dt)
 {
 	timeStep = dt;
@@ -1299,6 +1372,7 @@ void Engine::render()
 
 	window->draw(fpstext);
 	window->draw(entitiesSpawnedText);
+	window->draw(shapeButtonsText);
 
 	window->display();
 	objectsToDraw.clear();
@@ -1630,6 +1704,126 @@ sf::Vector2f Triangle::getVertexPosition(int vertex)
 }
 
 void Triangle::renderEntity(sf::RenderWindow& target)
+{
+	target.draw(body);
+}
+
+Hexagon::Hexagon()
+{
+	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
+	oldPosition = currentPosition;
+
+	currentAngle = 0.f;
+	oldAngle = 0.f;
+
+	mass = 1.f;
+	size = 10.f;
+	diameter = 2.f * size;
+	momentOfInertia = mass * size * size / 8.f;
+
+	body.setPointCount(6);
+	body.setPoint(0, { -(0.5f * size), -(size * root3 * 0.5f) });
+	body.setPoint(1, { (0.5f * size), -(size * root3 * 0.5f) });
+	body.setPoint(2, { size, 0.f });
+	body.setPoint(3, { (0.5f * size), (size * root3 * 0.5f) });
+	body.setPoint(4, { -(0.5f * size), (size * root3 * 0.5f) });
+	body.setPoint(5, { -size, 0.f });
+
+	color = sf::Color::Green;
+	body.setFillColor(color);
+	resCoeff = 0.8f;
+
+	force = { 0.f, 0.f };
+}
+
+Hexagon::Hexagon(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
+{
+	currentPosition = inputPos;
+	oldPosition = currentPosition;
+
+	currentAngle = 0.f;
+	oldAngle = -0.4f;
+
+	mass = inputMass;
+	size = inputSize;
+	diameter = 2.f * size;
+	momentOfInertia = mass * size * size / 8.f;
+
+	//Points for a hexagon are defined starting in top left corner and moving clockwise.
+	//Co-ordinates of points are relative to the position of the body
+
+	body.setPointCount(6);
+	body.setPoint(0, { -(0.5f * size), -(size * root3 * 0.5f) });
+	body.setPoint(1, { (0.5f * size), -(size * root3 * 0.5f) });
+	body.setPoint(2, { size, 0.f });
+	body.setPoint(3, { (0.5f * size), (size * root3 * 0.5f) });
+	body.setPoint(4, { -(0.5f * size), (size * root3 * 0.5f) });
+	body.setPoint(5, { -size, 0.f });
+
+	color = inputColor;
+	body.setFillColor(color);
+	resCoeff = 0.8f;
+
+	force = { 0.f, 0.f };
+	/*
+	body.setOutlineThickness(1);
+	body.setOutlineColor(sf::Color(250, 150, 100));
+	*/
+}
+
+Hexagon::~Hexagon()
+{
+}
+
+void Hexagon::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
+{
+	maxX = this->currentPosition.x + size;
+	minX = this->currentPosition.x - size;
+	maxY = this->currentPosition.y + size;
+	minY = this->currentPosition.y - size;
+}
+
+void Hexagon::updatePosition()
+{
+	body.setPosition(currentPosition);
+	body.setRotation(currentAngle);
+}
+
+void Hexagon::detectBarrierCollision(rectBarrier& b)
+{
+	Engine::polygonBarrierDetection(*this, b);
+}
+
+void Hexagon::detectEntityCollision(Entity& e)
+{
+	e.detectPolygonCollision(*this);
+}
+
+void Hexagon::detectCircleCollision(Circle& c)
+{
+	Engine::circlePolygonDetection(c, *this);
+}
+
+void Hexagon::detectPolygonCollision(ConvexPolygon& polygon)
+{
+	Engine::polygonPolygonDetection(*this, polygon);
+}
+
+sf::Vector2f Hexagon::getVertexPosition(int vertex)
+{
+	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
+	float angle = (3.14159 / 180.f) * currentAngle;
+
+	float sinAngle = std::sin(angle);
+	float cosAngle = std::cos(angle);
+
+	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
+	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
+
+	return { x + currentPosition.x, y + currentPosition.y };
+}
+
+void Hexagon::renderEntity(sf::RenderWindow& target)
 {
 	target.draw(body);
 }
