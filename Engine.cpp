@@ -2,7 +2,6 @@
 * Note that very small acceleration doesn't work due to floating point precision.
 * Bug? Feature? It looks like circles collide with squares, the circle loses
 * all momentum perpendicular to the edge of the circle it collided with.
-* Make the bounding box general for any barrier rotation.
 * Consider updating once every single frame. Should be no problem since barriers
 * cannot be moved by other objects.
 */
@@ -16,9 +15,10 @@ float f_windowHeight = 800.f;
 
 int counter = 0;
 float float_upperLimit = std::numeric_limits<float>::max();
-float float_lowerLimit = std::numeric_limits<float>::min();
+float float_lowerLimit = std::numeric_limits<float>::lowest();
+float root3 = 1.73205;
 
-int cell_size = 20;
+int cell_size = 40;
 int cell_number_x = windowWidth / cell_size;
 int cell_number_y = windowHeight / cell_size;
 
@@ -52,7 +52,7 @@ void Engine::initVariables()
 	window = nullptr;
 	timeStep = 0.0f;
 	timeElapsed = 0.0f;
-	subSteps = 8;
+	subSteps = 4;
 	entitiesSpawned = 0;
 
 	grid = std::vector<std::vector<Entity*>>(cell_number_x * cell_number_y);
@@ -112,6 +112,13 @@ void Engine::addSquare()
 	entitiesSpawned++;
 }
 
+void Engine::addTriangle()
+{
+	sf::Color colour = sf::Color(rand() % 100 + 155, rand() % 100 + 155, rand() % 100 + 155);
+	Entities.emplace_back(new Triangle(sf::Vector2f(rand() % 1000 + 100, 100.f), 1.f, 20.f, colour));
+	entitiesSpawned++;
+}
+
 void Engine::addSpring()
 {
 	addCircle();
@@ -153,6 +160,8 @@ void Engine::pollEvents()
 				addCircle();
 			} else if (e.key.code == sf::Keyboard::S) {
 				addSquare();
+			} else if (e.key.code == sf::Keyboard::L) {
+				addTriangle();
 			} else if (e.key.code == sf::Keyboard::R) {
 				addSpring();
 			} else if (e.key.code == sf::Keyboard::T) {
@@ -175,7 +184,7 @@ void Engine::solver(Entity& E, float dt)
 	float angularDisplacement = E.currentAngle - E.oldAngle;
 
 	//Damping coefficient
-	angularDisplacement *= 0.99f;
+	angularDisplacement *= 0.995f;
 
 	E.oldPosition = E.currentPosition;
 	E.oldAngle = E.currentAngle;
@@ -416,7 +425,7 @@ void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& pol
 	}
 
 	float minimumDepth = float_upperLimit;
-	sf::Vector2f minimumAxis;
+	sf::Vector2f minimumAxis = {-1.f, -1.f};
 	
 	std::vector<sf::Vector2f> polygonAVertices = Engine::getPolygonVertexPositions(polygonA);
 	std::vector<sf::Vector2f> polygonBVertices = Engine::getPolygonVertexPositions(polygonB);
@@ -432,6 +441,47 @@ void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& pol
 	if (dotProduct(polygonB.currentPosition - polygonA.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
+	//std::cout << "Collision axis: " << minimumAxis.x << " " << minimumAxis.y << std::endl;
+	//std::cout << "Collision depth: " << minimumDepth << std::endl;
+
+	//From this, conclude that the vertices are found where they should be. All are 23.09 away from the centre.
+	/*
+	if (minimumDepth > 1.0f && polygonAVertices.size() < 4 && polygonBVertices.size() < 4) {
+		std::cout << "Somthing happened" << std::endl;
+		std::cout << "Distance between the two shapes: " << Engine::findDistance(polygonA.currentPosition, polygonB.currentPosition) << std::endl;
+		std::cout << "Distance between polygon A and its vertices: " << Engine::findDistance(polygonA.currentPosition, polygonAVertices[0]) << std::endl;
+		std::cout << Engine::findDistance(polygonA.currentPosition, polygonAVertices[1]) << std::endl;
+		std::cout << Engine::findDistance(polygonA.currentPosition, polygonAVertices[2]) << std::endl;
+		std::cout << "Distance between polygon B and its vertices: " << Engine::findDistance(polygonB.currentPosition, polygonBVertices[0]) << std::endl;
+		std::cout << Engine::findDistance(polygonB.currentPosition, polygonBVertices[1]) << std::endl;
+		std::cout << Engine::findDistance(polygonB.currentPosition, polygonBVertices[2]) << std::endl;
+	}
+	*/
+
+	/*
+
+	sf::RectangleShape temp({ 5.f, 5.f });
+	temp.setPosition(polygonA.currentPosition);
+	temp.setFillColor(sf::Color::Red);
+	Engine::objectsToDraw.push_back(temp);
+
+	sf::RectangleShape temp2({ 5.f, 5.f });
+	temp2.setPosition(polygonB.currentPosition);
+	temp2.setFillColor(sf::Color::Red);
+	Engine::objectsToDraw.push_back(temp2);
+
+	for (int i = 0; i < polygonAVertices.size(); ++i) {
+		temp.setPosition(polygonAVertices[i]);
+		Engine::objectsToDraw.push_back(temp);
+	}
+
+	for (int i = 0; i < polygonBVertices.size(); ++i) {
+		temp.setPosition(polygonBVertices[i]);
+		Engine::objectsToDraw.push_back(temp);
+	}
+
+	*/
+
 	polygonPolygonResolution(polygonA, polygonB, minimumDepth, minimumAxis);
 }
 
@@ -510,6 +560,8 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 {
 	sf::Vector2f overlapCorrection = 0.5f * axis * depth;
 
+	//std::cout << "Depth of collision: " << depth << std::endl;
+
 	polygonA.currentPosition -= overlapCorrection;
 	polygonA.oldPosition -= overlapCorrection;
 
@@ -522,12 +574,12 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 	Engine::findContactPoints(polygonA, polygonB, contactPoints[0], contactPoints[1], contactCount);
 
 	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
-	/*
+	
 	sf::RectangleShape temp({ 5.f, 5.f });
 	temp.setPosition(contactPoints[0]);
 	temp.setFillColor(sf::Color::Red);
 	Engine::objectsToDraw.push_back(temp);
-	*/
+	
 	//std::cout << "Contact point registered." << std::endl;
 
 	std::vector<sf::Vector2f> r_PA_List(2);
@@ -732,7 +784,7 @@ void Engine::findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB,
 
 			sf::Vector2f contactPoint = closestPointOnLineSegment(point, v1, v2);
 			float dist = Engine::findDistance(contactPoint, point);
-
+			
 			if (Engine::nearlyEqual(dist, minDist))
 			{
 				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
@@ -740,6 +792,7 @@ void Engine::findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB,
 					contactCount = 2;
 				}
 			}
+			
 			else if (dist < minDist)
 			{
 				minDist = dist;
@@ -1150,14 +1203,16 @@ void Engine::update(float dt)
 
 	pollEvents();
 
+	/*
 	if (counter > 20) {
 		if(entitiesSpawned < 40) {
-			addSquare();
+			//addSquare();
 		}
 		counter = 0;
 	}
 	counter++;
 
+	*/
 	framerate = 1.f / clock.getElapsedTime().asSeconds();
 	clock.restart();
 
@@ -1234,12 +1289,19 @@ void Engine::render()
 		window->draw(object);
 	}
 
-	objectsToDraw.clear();
+	/*
+	if (counter > 120) {
+		objectsToDraw.clear();
+		counter = 0;
+	}
+	counter++;
+	*/
 
 	window->draw(fpstext);
 	window->draw(entitiesSpawnedText);
 
 	window->display();
+	objectsToDraw.clear();
 }
 
 const bool Engine::isWindowOpen() const
@@ -1332,9 +1394,9 @@ void Circle::detectCircleCollision(Circle& c)
 	Engine::circleCircleDetection(*this, c);
 }
 
-void Circle::detectSquareCollision(Square& s)
+void Circle::detectPolygonCollision(ConvexPolygon& polygon)
 {
-	Engine::circlePolygonDetection(*this, s);
+	Engine::circlePolygonDetection(*this, polygon);
 }
 
 void Circle::renderEntity(sf::RenderWindow& target)
@@ -1426,7 +1488,7 @@ void Square::detectBarrierCollision(rectBarrier& b)
 
 void Square::detectEntityCollision(Entity& e)
 {
-	e.detectSquareCollision(*this);
+	e.detectPolygonCollision(*this);
 }
 
 void Square::detectCircleCollision(Circle& c)
@@ -1434,9 +1496,9 @@ void Square::detectCircleCollision(Circle& c)
 	Engine::circlePolygonDetection(c, *this);
 }
 
-void Square::detectSquareCollision(Square& s)
+void Square::detectPolygonCollision(ConvexPolygon& polygon)
 {
-	Engine::polygonPolygonDetection(*this, s);
+	Engine::polygonPolygonDetection(*this, polygon);
 }
 
 sf::Vector2f Square::getVertexPosition(int vertex)
@@ -1454,6 +1516,120 @@ sf::Vector2f Square::getVertexPosition(int vertex)
 }
 
 void Square::renderEntity(sf::RenderWindow& target)
+{
+	target.draw(body);
+}
+
+Triangle::Triangle()
+{
+	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
+	oldPosition = currentPosition;
+
+	currentAngle = 0.f;
+	oldAngle = 0.f;
+
+	mass = 1.f;
+	size = 10.f;
+	diameter = root3 * 0.5f * size;
+	momentOfInertia = mass * size * size / 12.f;
+
+	body.setPointCount(3);
+	body.setPoint(0, { 0.f, -(diameter * 2.f / 3.f) });
+	body.setPoint(1, { (size / 2.f), (diameter / 3.f) });
+	body.setPoint(2, { -(size / 2.f), (diameter / 3.f) });
+
+	color = sf::Color::Green;
+	body.setFillColor(color);
+	resCoeff = 0.8f;
+
+	force = { 0.f, 0.f };
+}
+
+Triangle::Triangle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
+{
+	currentPosition = inputPos;
+	oldPosition = currentPosition;
+
+	currentAngle = 0.f;
+	oldAngle = -0.4f;
+
+	mass = inputMass;
+	size = inputSize;
+	diameter = root3 * 0.5f * size;
+	momentOfInertia = mass * size * size / 12.f;
+
+	//Points for a triangle are defined starting in top left corner and moving clockwise.
+	//Co-ordinates of points are relative to the position of the body
+
+	body.setPointCount(3);
+	body.setPoint(0, { 0.f, -(diameter * 2.f / 3.f) });
+	body.setPoint(1, { (size / 2.f), (diameter / 3.f) });
+	body.setPoint(2, { -(size / 2.f), (diameter / 3.f) });
+
+	color = inputColor;
+	body.setFillColor(color);
+	resCoeff = 0.8f;
+
+	force = { 0.f, 0.f };
+	/*
+	body.setOutlineThickness(1);
+	body.setOutlineColor(sf::Color(250, 150, 100));
+	*/
+}
+
+Triangle::~Triangle()
+{
+}
+
+void Triangle::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
+{
+	maxX = this->currentPosition.x + diameter * 0.667f;
+	minX = this->currentPosition.x - diameter * 0.667f;
+	maxY = this->currentPosition.y + diameter * 0.667f;
+	minY = this->currentPosition.y - diameter * 0.667f;
+}
+
+void Triangle::updatePosition()
+{
+	body.setPosition(currentPosition);
+	body.setRotation(currentAngle);
+}
+
+void Triangle::detectBarrierCollision(rectBarrier& b)
+{
+	Engine::polygonBarrierDetection(*this, b);
+}
+
+void Triangle::detectEntityCollision(Entity& e)
+{
+	e.detectPolygonCollision(*this);
+}
+
+void Triangle::detectCircleCollision(Circle& c)
+{
+	Engine::circlePolygonDetection(c, *this);
+}
+
+void Triangle::detectPolygonCollision(ConvexPolygon& polygon)
+{
+	Engine::polygonPolygonDetection(*this, polygon);
+}
+
+sf::Vector2f Triangle::getVertexPosition(int vertex)
+{
+	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
+	float angle = (3.14159 / 180.f) * currentAngle;
+
+	float sinAngle = std::sin(angle);
+	float cosAngle = std::cos(angle);
+
+	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
+	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
+
+	return { x + currentPosition.x, y + currentPosition.y };
+}
+
+void Triangle::renderEntity(sf::RenderWindow& target)
 {
 	target.draw(body);
 }

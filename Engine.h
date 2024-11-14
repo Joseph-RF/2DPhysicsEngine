@@ -20,6 +20,7 @@ extern int cell_number_y;
 extern int counter;
 extern float float_upperLimit;
 extern float float_lowerLimit;
+extern float root3;
 
 extern sf::Vector2f lowerBarrier_position;
 extern sf::Vector2f upperBarrier_position;
@@ -27,7 +28,9 @@ extern sf::Vector2f rightBarrier_position;
 extern sf::Vector2f leftBarrier_position;
 
 class Circle;
+class ConvexPolygon;
 class Square;
+class Triangle;
 class rectBarrier;
 
 class Entity
@@ -58,7 +61,7 @@ public:
 	virtual void detectBarrierCollision(rectBarrier& b) = 0;
 	virtual void detectEntityCollision(Entity& e) = 0;
 	virtual void detectCircleCollision(Circle& c) = 0;
-	virtual void detectSquareCollision(Square& s) = 0;
+	virtual void detectPolygonCollision(ConvexPolygon& polygon) = 0;
 
 	virtual void renderEntity(sf::RenderWindow& target) = 0;
 };
@@ -74,13 +77,13 @@ public:
 	Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
 	~Circle();
 
-	virtual void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
+	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
 
 	void updatePosition() override;
 	void detectBarrierCollision(rectBarrier& b) override;
 	void detectEntityCollision(Entity& e) override;
 	void detectCircleCollision(Circle& c) override;
-	void detectSquareCollision(Square& s) override;
+	void detectPolygonCollision(ConvexPolygon& polygon) override;
 
 	void renderEntity(sf::RenderWindow& target) override;
 };
@@ -101,18 +104,41 @@ public:
 	Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
 	~Square();
 
-	virtual void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
+	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
 
 	void updatePosition() override;
 	void detectBarrierCollision(rectBarrier& b) override;
 	void detectEntityCollision(Entity& e) override;
 	void detectCircleCollision(Circle& c) override;
-	void detectSquareCollision(Square& s) override;
+	void detectPolygonCollision(ConvexPolygon& polygon) override;
 
 	sf::Vector2f getVertexPosition(int vertex) override;
 
 	void renderEntity(sf::RenderWindow& target) override;
 };
+
+class Triangle : public ConvexPolygon
+{
+public:
+	float size;
+
+	Triangle();
+	Triangle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor);
+	~Triangle();
+
+	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
+
+	void updatePosition() override;
+	void detectBarrierCollision(rectBarrier& b) override;
+	void detectEntityCollision(Entity& e) override;
+	void detectCircleCollision(Circle& c) override;
+	void detectPolygonCollision(ConvexPolygon& polygon) override;
+
+	sf::Vector2f getVertexPosition(int vertex) override;
+
+	void renderEntity(sf::RenderWindow& target) override;
+};
+
 class rectBarrier
 {
 public:
@@ -201,6 +227,7 @@ public:
 
 	void addCircle();
 	void addSquare();
+	void addTriangle();
 	void addSpring();
 	void addSponge();
 
