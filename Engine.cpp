@@ -311,7 +311,7 @@ void Engine::circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vec
 	const sf::Vector2f vel_c2 = c2.currentPosition - c2.oldPosition;
 	const sf::Vector2f vel_c1 = c1.currentPosition - c1.oldPosition;
 
-	const float norm_vel_relative = Engine::dotProduct(vel_c2 - vel_c1, axis);
+	const float norm_vel_relative = VectorMath::dotProduct(vel_c2 - vel_c1, axis);
 
 	//Only take impulse into account if objects are moving towards each other.
 	if (norm_vel_relative > 0.f) {
@@ -338,16 +338,16 @@ void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& polygon)
 	int polygonVertexCount = polygon.body.getPointCount();
 
 	for (int i = 0; i < polygonVertexCount; ++i) {
-		sf::Vector2f tempVector = Engine::closestPointOnLineSegment(c.currentPosition, polygon.getVertexPosition(i),
+		sf::Vector2f tempVector = VectorMath::closestPointOnLineSegment(c.currentPosition, polygon.getVertexPosition(i),
 																	polygon.getVertexPosition((i + 1) % polygonVertexCount));
-		float tempDistance = Engine::findDistance(c.currentPosition, tempVector);
+		float tempDistance = VectorMath::findDistance(c.currentPosition, tempVector);
 
 		if (tempDistance < c.size) {
 			sf::Vector2f axis = tempVector - c.currentPosition;
-			axis = Engine::normalise(axis);
+			axis = VectorMath::normalise(axis);
 
 			//Check the normal is facing in the correct direction
-			if (dotProduct(polygon.currentPosition - c.currentPosition, axis) < 0.f) {
+			if (VectorMath::dotProduct(polygon.currentPosition - c.currentPosition, axis) < 0.f) {
 				axis = {-axis.x, -axis.y};
 			}
 			//std::cout << "Distance being passed: " << tempDistance << std::endl;
@@ -371,19 +371,19 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float de
 	sf::Vector2f r_PA = (polygon.currentPosition + contactPointOnPolygon) - c.currentPosition;
 
 	sf::Vector2f v_A = c.currentPosition - c.oldPosition;
-	v_A -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(r_PA);
+	v_A -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(r_PA);
 
 	sf::Vector2f v_B = polygon.currentPosition - polygon.oldPosition;
-	v_B -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(contactPointOnPolygon);
+	v_B -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(contactPointOnPolygon);
 
-	float contactVelocity_mag = Engine::dotProduct(v_B - v_A, axis);
+	float contactVelocity_mag = VectorMath::dotProduct(v_B - v_A, axis);
 
 	if (contactVelocity_mag > 0.f) {
 		return;
 	}
 
-	float r_PA_PerpDotN = Engine::dotProduct(Engine::perpendicular(r_PA), axis);
-	float r_PB_PerpDotN = Engine::dotProduct(Engine::perpendicular(contactPointOnPolygon), axis);
+	float r_PA_PerpDotN = VectorMath::dotProduct(VectorMath::perpendicular(r_PA), axis);
+	float r_PB_PerpDotN = VectorMath::dotProduct(VectorMath::perpendicular(contactPointOnPolygon), axis);
 
 	float denom = (1.f / c.mass) + (1.f / polygon.mass) +
 		(r_PA_PerpDotN * r_PA_PerpDotN) * (1.f / c.momentOfInertia) +
@@ -398,35 +398,10 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float de
 	sf::Vector2f impulse = j * axis;
 
 	c.oldPosition += impulse * (1.f / c.mass);
-	c.oldAngle += Engine::crossProduct(r_PA, impulse) * (1.f / c.momentOfInertia);
+	c.oldAngle += VectorMath::crossProduct(r_PA, impulse) * (1.f / c.momentOfInertia);
 
 	polygon.oldPosition -= impulse * (1.f / polygon.mass);
-	polygon.oldAngle -= Engine::crossProduct(contactPointOnPolygon, impulse) * (1.f / polygon.momentOfInertia);
-}
-
-sf::Vector2f Engine::closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, sf::Vector2f& b)
-{
-	sf::Vector2f ab = b - a;
-	sf::Vector2f ac = c.currentPosition - a;
-
-	float abMagnitudeSquared = ((ab.x * ab.x) + (ab.y * ab.y));
-
-	if (abMagnitudeSquared == 0) {
-		//a and b are the same point
-		return a;
-	}
-
-	float t = ((ac.x * ab.x) + (ac.y * ab.y)) / abMagnitudeSquared;
-
-	if (t < 0) {
-		return a;
-	}
-	else if (t > 1) {
-		return b;
-	}
-	else {
-		return { a.x + (t * ab.x), a.y + (t * ab.y) };
-	}
+	polygon.oldAngle -= VectorMath::crossProduct(contactPointOnPolygon, impulse) * (1.f / polygon.momentOfInertia);
 }
 
 void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& polygonB)
@@ -449,7 +424,7 @@ void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& pol
 	//Polygons are colliding and the minimum distance in order to separate the two has been found.
 
 	//Check the normal is facing in the correct direction
-	if (dotProduct(polygonB.currentPosition - polygonA.currentPosition, minimumAxis) < 0.f) {
+	if (VectorMath::dotProduct(polygonB.currentPosition - polygonA.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
 	//std::cout << "Collision axis: " << minimumAxis.x << " " << minimumAxis.y << std::endl;
@@ -512,8 +487,8 @@ bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vec
 		sf::Vector2f vertex1Position = polygonAVertices[i];
 		sf::Vector2f vertex2Position = polygonAVertices[(i + 1) % polygonAVertexCount];
 
-		axis = Engine::perpendicular(vertex2Position - vertex1Position);
-		axis = Engine::normalise(axis);
+		axis = VectorMath::perpendicular(vertex2Position - vertex1Position);
+		axis = VectorMath::normalise(axis);
 
 		//Project all the vertices of both polygons onto the axis. Find the max and min for both polygons
 		float max1 = float_lowerLimit;
@@ -524,7 +499,7 @@ bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vec
 
 		for (int j = 0; j < polygonAVertexCount; ++j) {
 			sf::Vector2f vertexPosition = polygonAVertices[j];
-			float projection = Engine::dotProduct(vertexPosition, axis);
+			float projection = VectorMath::dotProduct(vertexPosition, axis);
 
 			if (projection > max1) {
 				max1 = projection;
@@ -535,7 +510,7 @@ bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vec
 		}
 		for (int j = 0; j < polygonBVertexCount; ++j) {
 			sf::Vector2f vertexPosition = polygonBVertices[j];
-			float projection = Engine::dotProduct(vertexPosition, axis);
+			float projection = VectorMath::dotProduct(vertexPosition, axis);
 
 			if (projection > max2) {
 				max2 = projection;
@@ -582,7 +557,10 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 	std::vector<sf::Vector2f> contactPoints(2);
 	int contactCount = 0;
 
-	Engine::findContactPoints(polygonA, polygonB, contactPoints[0], contactPoints[1], contactCount);
+	std::vector<sf::Vector2f> polygonAVertices = polygonA.getAllVertices();
+	std::vector<sf::Vector2f> polygonBVertices = polygonB.getAllVertices();
+
+	Engine::findContactPoints(polygonAVertices, polygonBVertices, contactPoints[0], contactPoints[1], contactCount);
 
 	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
 	
@@ -606,20 +584,20 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 		r_PB_List[i] = r_PB;
 
 		sf::Vector2f v_A = (polygonA.currentPosition - polygonA.oldPosition);
-		v_A -= (polygonA.currentAngle - polygonA.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(r_PA);
+		v_A -= (polygonA.currentAngle - polygonA.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(r_PA);
 
 		sf::Vector2f v_B = (polygonB.currentPosition - polygonB.oldPosition);
-		v_B -= (polygonB.currentAngle - polygonB.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(r_PB);
+		v_B -= (polygonB.currentAngle - polygonB.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(r_PB);
 
-		float contactVelocity_mag = Engine::dotProduct(v_B - v_A, axis);
+		float contactVelocity_mag = VectorMath::dotProduct(v_B - v_A, axis);
 
 		if (contactVelocity_mag > 0.f)
 		{
 			continue;
 		}
 
-		float r_PA_PerpDotN = Engine::dotProduct(Engine::perpendicular(r_PA), axis);
-		float r_PB_PerpDotN = Engine::dotProduct(Engine::perpendicular(r_PB), axis);
+		float r_PA_PerpDotN = VectorMath::dotProduct(VectorMath::perpendicular(r_PA), axis);
+		float r_PB_PerpDotN = VectorMath::dotProduct(VectorMath::perpendicular(r_PB), axis);
 
 		float denom = (1.f / polygonA.mass) + (1.f / polygonB.mass) +
 			(r_PA_PerpDotN * r_PA_PerpDotN) * (1.f / polygonA.momentOfInertia) +
@@ -642,16 +620,19 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 		sf::Vector2f r_PB = r_PB_List[i];
 
 		polygonA.oldPosition += impulse * (1.f / polygonA.mass);
-		polygonA.oldAngle += Engine::crossProduct(r_PA, impulse) * (1.f / polygonA.momentOfInertia) * (180.f / 3.141592f);
+		polygonA.oldAngle += VectorMath::crossProduct(r_PA, impulse) * (1.f / polygonA.momentOfInertia) * (180.f / 3.141592f);
 
 		polygonB.oldPosition -= impulse * (1.f / polygonB.mass);
-		polygonB.oldAngle -= Engine::crossProduct(r_PB, impulse) * (1.f / polygonB.momentOfInertia) * (180.f / 3.141592f);
+		polygonB.oldAngle -= VectorMath::crossProduct(r_PB, impulse) * (1.f / polygonB.momentOfInertia) * (180.f / 3.141592f);
 	}
 
 	return;
 }
 
-bool Engine::checkBoundingBox(Circle& circle, rectBarrier& barrier)
+bool Engine::checkBoundingBox(
+	Circle& circle,
+	rectBarrier& barrier
+)
 {
 	//NOTE: ASSUMES BARRIER IS NOT ROTATED
 
@@ -673,7 +654,10 @@ bool Engine::checkBoundingBox(Circle& circle, rectBarrier& barrier)
 			minY_circle < maxY_barrier && maxY_circle > minY_barrier);
 }
 
-bool Engine::checkBoundingBox(ConvexPolygon& polygon, rectBarrier& barrier)
+bool Engine::checkBoundingBox(
+	ConvexPolygon& polygon,
+	rectBarrier& barrier
+)
 {
 	//NOTE: ASSUMES BARRIER IS NOT ROTATED
 
@@ -695,7 +679,10 @@ bool Engine::checkBoundingBox(ConvexPolygon& polygon, rectBarrier& barrier)
 			minY_polygon < maxY_barrier && maxY_polygon > minY_barrier);
 }
 
-bool Engine::checkBoundingBox(Circle& circle, ConvexPolygon& polygon)
+bool Engine::checkBoundingBox(
+	Circle& circle,
+	ConvexPolygon& polygon
+)
 {
 	float maxX_circle = 0.f;
 	float minX_circle = 0.f;
@@ -714,7 +701,10 @@ bool Engine::checkBoundingBox(Circle& circle, ConvexPolygon& polygon)
 			minY_circle < maxY_polygon && maxY_circle > minY_polygon);
 }
 
-bool Engine::checkBoundingBox(ConvexPolygon& polygonA, ConvexPolygon& polygonB)
+bool Engine::checkBoundingBox(
+	ConvexPolygon& polygonA,
+	ConvexPolygon& polygonB
+)
 {
 	float maxX_A = 0.f;
 	float minX_A = 0.f;
@@ -733,24 +723,10 @@ bool Engine::checkBoundingBox(ConvexPolygon& polygonA, ConvexPolygon& polygonB)
 			minY_A < maxY_B && maxY_A > minY_B);
 }
 
-sf::Vector2f Engine::closestPointOnLineSegment(const sf::Vector2f& circlePos, const sf::Vector2f& vertex1Pos, const sf::Vector2f& vertex2Pos)
-{
-	sf::Vector2f edge = vertex2Pos - vertex1Pos;
-	float denominator = Engine::dotProduct(edge, edge);
-	if (denominator == 0.0f) {
-		return vertex1Pos;
-	}
-
-	float t = Engine::dotProduct((circlePos - vertex1Pos), edge) / denominator;
-
-	//Clamp t between 0 and 1.
-	if (t > 1.f) { t = 1.f; }
-	else if (t < 0.f) { t = 0.f; }
-
-	return (vertex1Pos + (t * (vertex2Pos - vertex1Pos)));
-}
-
-sf::Vector2f Engine::findContactPoint(Circle& c, ConvexPolygon& convexPolygon)
+sf::Vector2f Engine::findContactPoint(
+	Circle& c,
+	ConvexPolygon& convexPolygon
+)
 {
 	sf::Vector2f contactPoint;
 	float distanceToContactPoint = float_upperLimit;
@@ -758,9 +734,9 @@ sf::Vector2f Engine::findContactPoint(Circle& c, ConvexPolygon& convexPolygon)
 	int polygonVertexCount = convexPolygon.body.getPointCount();
 
 	for (int i = 0; i < polygonVertexCount; ++i) {
-		sf::Vector2f tempVector = Engine::closestPointOnLineSegment(c.currentPosition, convexPolygon.getVertexPosition(i),
+		sf::Vector2f tempVector = VectorMath::closestPointOnLineSegment(c.currentPosition, convexPolygon.getVertexPosition(i),
 																	convexPolygon.getVertexPosition((i + 1) % polygonVertexCount));
-		float tempDistance = Engine::findDistance(c.currentPosition, tempVector);
+		float tempDistance = VectorMath::findDistance(c.currentPosition, tempVector);
 
 		if (tempDistance < distanceToContactPoint) {
 			distanceToContactPoint = tempDistance;
@@ -770,40 +746,41 @@ sf::Vector2f Engine::findContactPoint(Circle& c, ConvexPolygon& convexPolygon)
 	return contactPoint;
 }
 
-void Engine::findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB, sf::Vector2f& contactPoint1, sf::Vector2f& contactPoint2, int& contactCount)
+void Engine::findContactPoints(
+	std::vector<sf::Vector2f>& shapeAVertices,
+	std::vector<sf::Vector2f>& shapeBVertices,
+	sf::Vector2f& contactPoint1,
+	sf::Vector2f& contactPoint2,
+	int& contactCount
+)
 {
 	contactPoint1 = { -1.f, -1.f };
 	contactPoint2 = { -1.f, -1.f };
 
 	float minDist = float_upperLimit;
-	int polygonAVertexCount = polygonA.body.getPointCount();
-	int polygonBVertexCount = polygonB.body.getPointCount();
-	std::vector<sf::Vector2f> polygonAVertices(polygonAVertexCount);
+	int shapeAVertexCount = shapeAVertices.size();
+	int shapeBVertexCount = shapeBVertices.size();
 
-	for (int i = 0; i < polygonAVertexCount; ++i) {
-		polygonAVertices[i] = polygonA.getVertexPosition(i);
-	}
-
-	for (int i = 0; i < polygonAVertexCount; i++)
+	for (int i = 0; i < shapeAVertexCount; i++)
 	{
-		sf::Vector2f point = polygonAVertices[i];
+		sf::Vector2f point = shapeAVertices[i];
 
-		for (int j = 0; j < polygonBVertexCount; j++)
+		for (int j = 0; j < shapeBVertexCount; j++)
 		{
-			sf::Vector2f v1 = polygonB.getVertexPosition(j);
-			sf::Vector2f v2 = polygonB.getVertexPosition((j + 1) % polygonBVertexCount);
+			sf::Vector2f v1 = shapeBVertices[j];
+			sf::Vector2f v2 = shapeBVertices[(j + 1) % shapeBVertexCount];
 
-			sf::Vector2f contactPoint = closestPointOnLineSegment(point, v1, v2);
-			float dist = Engine::findDistance(contactPoint, point);
-			
-			if (Engine::nearlyEqual(dist, minDist))
+			sf::Vector2f contactPoint = VectorMath::closestPointOnLineSegment(point, v1, v2);
+			float dist = VectorMath::findDistance(contactPoint, point);
+
+			if (VectorMath::nearlyEqual(dist, minDist))
 			{
-				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
+				if (!VectorMath::nearlyEqual(contactPoint, contactPoint1)) {
 					contactPoint2 = contactPoint;
 					contactCount = 2;
 				}
 			}
-			
+
 			else if (dist < minDist)
 			{
 				minDist = dist;
@@ -813,21 +790,21 @@ void Engine::findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB,
 		}
 	}
 
-	for (int i = 0; i < polygonBVertexCount; i++)
+	for (int i = 0; i < shapeBVertexCount; i++)
 	{
-		sf::Vector2f point = polygonB.getVertexPosition(i);
+		sf::Vector2f point = shapeBVertices[i];
 
-		for (int j = 0; j < polygonAVertexCount; j++)
+		for (int j = 0; j < shapeAVertexCount; j++)
 		{
-			sf::Vector2f v1 = polygonAVertices[j];
-			sf::Vector2f v2 = polygonAVertices[(j + 1) % polygonAVertexCount];
+			sf::Vector2f v1 = shapeAVertices[j];
+			sf::Vector2f v2 = shapeAVertices[(j + 1) % shapeAVertexCount];
 
-			sf::Vector2f contactPoint = Engine::closestPointOnLineSegment(point, v1, v2);
-			float dist = Engine::findDistance(contactPoint, point);
+			sf::Vector2f contactPoint = VectorMath::closestPointOnLineSegment(point, v1, v2);
+			float dist = VectorMath::findDistance(contactPoint, point);
 
-			if (Engine::nearlyEqual(dist, minDist))
+			if (VectorMath::nearlyEqual(dist, minDist))
 			{
-				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
+				if (!VectorMath::nearlyEqual(contactPoint, contactPoint1)) {
 					contactPoint2 = contactPoint;
 					contactCount = 2;
 				}
@@ -844,152 +821,10 @@ void Engine::findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB,
 	return;
 }
 
-void Engine::findContactPoints(ConvexPolygon& polygon, rectBarrier& barrier, sf::Vector2f& contactPoint1, sf::Vector2f& contactPoint2, int& contactCount)
-{
-	contactPoint1 = {-1.f, -1.f};
-	contactPoint2 = { -1.f, -1.f };
-
-	float minDist = float_upperLimit;
-	int polygonVertexCount = polygon.body.getPointCount();
-	int barrierVertexCount = 4;
-	std::vector<sf::Vector2f> polygonVertices(polygonVertexCount);
-
-	for (int i = 0; i < polygonVertexCount; ++i) {
-		polygonVertices[i] = polygon.getVertexPosition(i);
-	}
-
-	for (int i = 0; i < polygonVertexCount; i++)
-	{
-		sf::Vector2f point = polygonVertices[i];
-
-		for (int j = 0; j < barrierVertexCount; j++)
-		{
-			sf::Vector2f v1 = barrier.vertexPositions[j];
-			sf::Vector2f v2 = barrier.vertexPositions[(j + 1) % barrierVertexCount];
-
-			sf::Vector2f contactPoint = closestPointOnLineSegment(point, v1, v2);
-			float dist = Engine::findDistance(contactPoint, point);
-
-			if (Engine::nearlyEqual(dist, minDist))
-			{
-				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
-					contactPoint2 = contactPoint;
-					contactCount = 2;
-				}
-			}
-			else if (dist < minDist)
-			{
-				minDist = dist;
-				contactCount = 1;
-				contactPoint1 = contactPoint;
-			}
-		}
-	}
-
-	for (int i = 0; i < barrierVertexCount; i++)
-	{
-		sf::Vector2f point = barrier.vertexPositions[i];
-
-		for (int j = 0; j < polygonVertexCount; j++)
-		{
-			sf::Vector2f v1 = polygonVertices[j];
-			sf::Vector2f v2 = polygonVertices[(j + 1) % polygonVertexCount];
-
-			sf::Vector2f contactPoint = Engine::closestPointOnLineSegment(point, v1, v2);
-			float dist = Engine::findDistance(contactPoint, point);
-
-			if (Engine::nearlyEqual(dist, minDist))
-			{
-				if (!Engine::nearlyEqual(contactPoint, contactPoint1)) {
-					contactPoint2 = contactPoint;
-					contactCount = 2;
-				}
-			}
-
-			else if (dist < minDist)
-			{
-				minDist = dist;
-				contactCount = 1;
-				contactPoint1 = contactPoint;
-			}
-		}
-	}
-}
-
-std::pair<sf::Vector2f, sf::Vector2f> Engine::findReferenceEdge(ConvexPolygon& polygonA, ConvexPolygon& polygonB, sf::Vector2f& axis)
-{
-	float maxProjection = float_lowerLimit;
-	std::pair<sf::Vector2f, sf::Vector2f> bestEdge;
-	int polygonAVertexCount = polygonA.body.getPointCount();
-
-	for (int i = 0; i < polygonAVertexCount; ++i) {
-		sf::Vector2f v1 = polygonA.getVertexPosition(i);
-		sf::Vector2f v2 = polygonA.getVertexPosition((i + 1) % polygonAVertexCount);
-
-		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
-
-		if (tempProjection > maxProjection) {
-			maxProjection = tempProjection;
-			bestEdge = { v1, v2 };
-		}
-	}
-
-	int polygonBVertexCount = polygonB.body.getPointCount();
-
-	for (int i = 0; i < polygonBVertexCount; ++i) {
-		sf::Vector2f v1 = polygonB.getVertexPosition(i);
-		sf::Vector2f v2 = polygonB.getVertexPosition((i + 1) % polygonBVertexCount);
-
-		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
-
-		if (tempProjection > maxProjection) {
-			maxProjection = tempProjection;
-			bestEdge = { v1, v2 };
-		}
-	}
-
-	return bestEdge;
-}
-
-std::pair<sf::Vector2f, sf::Vector2f> Engine::findReferenceEdge(ConvexPolygon& polygon, rectBarrier& barrier, sf::Vector2f& axis)
-{
-	/*
-	* Get rid of these two functions by taking in vertices as input. Less repeated code.
-	*/
-	float maxProjection = float_lowerLimit;
-	std::pair<sf::Vector2f, sf::Vector2f> bestEdge;
-	int polygonVertexCount = polygon.body.getPointCount();
-
-	for (int i = 0; i < polygonVertexCount; ++i) {
-		sf::Vector2f v1 = polygon.getVertexPosition(i);
-		sf::Vector2f v2 = polygon.getVertexPosition((i + 1) % polygonVertexCount);
-
-		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
-
-		if (tempProjection > maxProjection) {
-			maxProjection = tempProjection;
-			bestEdge = { v1, v2 };
-		}
-	}
-
-	int barrierVertexCount = barrier.body.getPointCount();
-
-	for (int i = 0; i < barrierVertexCount; ++i) {
-		sf::Vector2f v1 = barrier.vertexPositions[i];
-		sf::Vector2f v2 = barrier.vertexPositions[(i + 1) % barrierVertexCount];
-
-		float tempProjection = Engine::dotProduct(Engine::normalise(v2 - v1), axis);
-
-		if (tempProjection > maxProjection) {
-			maxProjection = tempProjection;
-			bestEdge = { v1, v2 };
-		}
-	}
-
-	return bestEdge;
-}
-
-void Engine::polygonBarrierDetection(ConvexPolygon& polygon, rectBarrier& barrier)
+void Engine::polygonBarrierDetection(
+	ConvexPolygon& polygon,
+	rectBarrier& barrier
+)
 {
 	if (!Engine::checkBoundingBox(polygon, barrier)) {
 		return;
@@ -1011,13 +846,18 @@ void Engine::polygonBarrierDetection(ConvexPolygon& polygon, rectBarrier& barrie
 	//Polygons are colliding and the minimum distance in order to separate the two has been found.
 
 	//Check the normal is facing in the correct direction
-	if (dotProduct(barrierPosition - polygon.currentPosition, minimumAxis) < 0.f) {
+	if (VectorMath::dotProduct(barrierPosition - polygon.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
 	polygonBarrierResolution(polygon, barrier, minimumDepth, minimumAxis);
 }
 
-void Engine::polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barrier, const float& depth, const sf::Vector2f& axis)
+void Engine::polygonBarrierResolution(
+	ConvexPolygon& polygon,
+	rectBarrier& barrier,
+	const float& depth,
+	const sf::Vector2f& axis
+)
 {
 	//Note will be leaving out the time factor for velocities since it cancels out in the end.
 	
@@ -1027,7 +867,10 @@ void Engine::polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barri
 	std::vector<sf::Vector2f> contactPoints(2);
 	int contactCount = 0;
 
-	Engine::findContactPoints(polygon, barrier, contactPoints[0], contactPoints[1], contactCount);
+	std::vector<sf::Vector2f> polygonVertices = polygon.getAllVertices();
+	std::vector<sf::Vector2f> barrierVertices = Engine::getBarrierVertexPositions(barrier);
+
+	Engine::findContactPoints(polygonVertices, barrierVertices, contactPoints[0], contactPoints[1], contactCount);
 
 	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
 	/*
@@ -1049,16 +892,16 @@ void Engine::polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barri
 
 		sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
 
-		polygonVelocity -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(polygonToContactPoint);
+		polygonVelocity -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(polygonToContactPoint);
 
-		float contactVelocityMag = Engine::dotProduct(-polygonVelocity, axis);
+		float contactVelocityMag = VectorMath::dotProduct(-polygonVelocity, axis);
 
 		if (contactVelocityMag > 0.f)
 		{
 			continue;
 		}
 		
-		float raPerpDotN = Engine::dotProduct(Engine::perpendicular(polygonToContactPoint), axis);
+		float raPerpDotN = VectorMath::dotProduct(VectorMath::perpendicular(polygonToContactPoint), axis);
 
 		float denom = (1.f / polygon.mass) + 0.f +
 			(raPerpDotN * raPerpDotN) * (1.f / polygon.momentOfInertia) +
@@ -1078,13 +921,16 @@ void Engine::polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barri
 		sf::Vector2f ra = raList[i];
 
 		polygon.oldPosition += impulse * (1.f / polygon.mass);
-		polygon.oldAngle += Engine::crossProduct(ra, impulse) * (1.f / polygon.momentOfInertia) * (180.f / 3.141592f);
+		polygon.oldAngle += VectorMath::crossProduct(ra, impulse) * (1.f / polygon.momentOfInertia) * (180.f / 3.141592f);
 	}
 
 	return;
 }
 
-void Engine::circleBarrierDetection(Circle& c, rectBarrier& b)
+void Engine::circleBarrierDetection(
+	Circle& c,
+	rectBarrier& b
+)
 {
 	if (!Engine::checkBoundingBox(c, b)) {
 		return;
@@ -1094,16 +940,16 @@ void Engine::circleBarrierDetection(Circle& c, rectBarrier& b)
 	int barrierVertexCount = b.body.getPointCount();
 
 	for (int i = 0; i < barrierVertexCount; ++i) {
-		sf::Vector2f tempVector = Engine::closestPointOnLineSegment(c.currentPosition, b.vertexPositions[i],
+		sf::Vector2f tempVector = VectorMath::closestPointOnLineSegment(c.currentPosition, b.vertexPositions[i],
 			b.vertexPositions[(i + 1) % barrierVertexCount]);
-		float tempDistance = Engine::findDistance(c.currentPosition, tempVector);
+		float tempDistance = VectorMath::findDistance(c.currentPosition, tempVector);
 
 		if (tempDistance < c.size) {
 			sf::Vector2f axis = tempVector - c.currentPosition;
-			axis = Engine::normalise(axis);
+			axis = VectorMath::normalise(axis);
 
 			//Check the normal is facing in the correct direction
-			if (dotProduct(b.position - c.currentPosition, axis) < 0.f) {
+			if (VectorMath::dotProduct(b.position - c.currentPosition, axis) < 0.f) {
 				axis = { -axis.x, -axis.y };
 			}
 			//std::cout << "Distance being passed: " << tempDistance << std::endl;
@@ -1112,7 +958,13 @@ void Engine::circleBarrierDetection(Circle& c, rectBarrier& b)
 	}
 }
 
-void Engine::circleBarrierResolution(Circle& c, rectBarrier& b, const float& depth, const sf::Vector2f& axis, const sf::Vector2f& contactPointOnBarrier)
+void Engine::circleBarrierResolution(
+	Circle& c,
+	rectBarrier& b,
+	const float& depth,
+	const sf::Vector2f& axis,
+	const sf::Vector2f& contactPointOnBarrier
+)
 {
 	//Note will be leaving out the time factor for velocities since it cancels out in the end.
 	//Denoting circle as A and barrier as B.
@@ -1122,15 +974,15 @@ void Engine::circleBarrierResolution(Circle& c, rectBarrier& b, const float& dep
 	sf::Vector2f circleToContactPoint = (contactPointOnBarrier + b.position) - c.currentPosition;
 
 	sf::Vector2f circleVelocity = (c.currentPosition - c.oldPosition);
-	circleVelocity -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * Engine::perpendicular(circleToContactPoint);
+	circleVelocity -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(circleToContactPoint);
 
-	float contactVelocityMag = Engine::dotProduct(-circleVelocity, axis);
+	float contactVelocityMag = VectorMath::dotProduct(-circleVelocity, axis);
 
 	if (contactVelocityMag > 0.f) {
 		return;
 	}
 
-	float raPerpDotN = Engine::dotProduct(Engine::perpendicular(circleToContactPoint), axis);
+	float raPerpDotN = VectorMath::dotProduct(VectorMath::perpendicular(circleToContactPoint), axis);
 
 	float denom = (1.f / c.mass) + 0.f +
 		(raPerpDotN * raPerpDotN) * (1.f / c.momentOfInertia) +
@@ -1143,49 +995,14 @@ void Engine::circleBarrierResolution(Circle& c, rectBarrier& b, const float& dep
 	sf::Vector2f impulse = j * axis;
 
 	c.oldPosition += impulse * (1.f / c.mass);
-	c.oldAngle += Engine::crossProduct(circleToContactPoint, impulse) * (1.f / c.momentOfInertia) * (180.f / 3.141592f);
+	c.oldAngle += VectorMath::crossProduct(circleToContactPoint, impulse) * (1.f / c.momentOfInertia) * (180.f / 3.141592f);
 
 	return;
 }
 
-float Engine::dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2)
-{
-	return ((v1.x * v2.x) + (v1.y * v2.y));
-}
-
-float Engine::crossProduct(const sf::Vector2f& v1, const sf::Vector2f& v2)
-{
-	return v1.x * v2.y - v1.y * v2.x;
-}
-
-sf::Vector2f Engine::normalise(const sf::Vector2f& v)
-{
-	return sf::Vector2f(v / pow(v.x * v.x + v.y * v.y , 0.5f));
-}
-
-float Engine::findDistance(const sf::Vector2f& v1, const sf::Vector2f& v2)
-{
-	return pow(((v2.x - v1.x) * (v2.x - v1.x)) + ((v2.y - v1.y) * (v2.y - v1.y)), 0.5f);
-}
-
-sf::Vector2f Engine::perpendicular(const sf::Vector2f& v)
-{
-	return { v.y, -v.x };
-}
-
-bool Engine::nearlyEqual(const float a1, const float a2)
-{
-	float verySmallAmount = 0.1f;
-	return abs(a1 - a2) < verySmallAmount;
-}
-
-bool Engine::nearlyEqual(const sf::Vector2f& v1, const sf::Vector2f& v2)
-{
-	float verySmallAmount = 0.1f;
-	return Engine::findDistance(v1, v2) < verySmallAmount;
-}
-
-std::vector<sf::Vector2f> Engine::getPolygonVertexPositions(ConvexPolygon& polygon)
+std::vector<sf::Vector2f> Engine::getPolygonVertexPositions(
+	ConvexPolygon& polygon
+)
 {
 	int vertexCount = polygon.body.getPointCount();
 	std::vector<sf::Vector2f> vertexPositions(vertexCount);
@@ -1197,7 +1014,9 @@ std::vector<sf::Vector2f> Engine::getPolygonVertexPositions(ConvexPolygon& polyg
 	return vertexPositions;
 }
 
-std::vector<sf::Vector2f> Engine::getBarrierVertexPositions(rectBarrier& barrier)
+std::vector<sf::Vector2f> Engine::getBarrierVertexPositions(
+	rectBarrier& barrier
+)
 {
 	int vertexCount = barrier.body.getPointCount();
 	std::vector<sf::Vector2f> vertexPositions(vertexCount);
@@ -1589,6 +1408,17 @@ sf::Vector2f Square::getVertexPosition(int vertex)
 	return { x + currentPosition.x, y + currentPosition.y };
 }
 
+std::vector<sf::Vector2f> Square::getAllVertices()
+{
+	int vertexCount = this->body.getPointCount();
+	std::vector<sf::Vector2f> vertices(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertices[i] = this->getVertexPosition(i);
+	}
+	return vertices;
+}
+
 void Square::renderEntity(sf::RenderWindow& target)
 {
 	target.draw(body);
@@ -1701,6 +1531,17 @@ sf::Vector2f Triangle::getVertexPosition(int vertex)
 	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
 
 	return { x + currentPosition.x, y + currentPosition.y };
+}
+
+std::vector<sf::Vector2f> Triangle::getAllVertices()
+{
+	int vertexCount = this->body.getPointCount();
+	std::vector<sf::Vector2f> vertices(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertices[i] = this->getVertexPosition(i);
+	}
+	return vertices;
 }
 
 void Triangle::renderEntity(sf::RenderWindow& target)
@@ -1821,6 +1662,17 @@ sf::Vector2f Hexagon::getVertexPosition(int vertex)
 	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
 
 	return { x + currentPosition.x, y + currentPosition.y };
+}
+
+std::vector<sf::Vector2f> Hexagon::getAllVertices()
+{
+	int vertexCount = this->body.getPointCount();
+	std::vector<sf::Vector2f> vertices(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertices[i] = this->getVertexPosition(i);
+	}
+	return vertices;
 }
 
 void Hexagon::renderEntity(sf::RenderWindow& target)

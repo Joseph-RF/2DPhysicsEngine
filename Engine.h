@@ -3,10 +3,11 @@
 #include <SFML/System.hpp>
 #include <SFML/Graphics.hpp>
 
+#include "VectorMath.h"
+
 #include <iostream>
 #include <cmath>
 #include <memory>
-#include <limits>
 
 extern int windowWidth;
 extern int windowHeight;
@@ -94,6 +95,7 @@ class ConvexPolygon : public Entity
 public:
 	sf::ConvexShape body;
 	virtual sf::Vector2f getVertexPosition(int vertex) = 0;
+	virtual std::vector<sf::Vector2f> getAllVertices() = 0;
 };
 
 class Square : public ConvexPolygon
@@ -114,6 +116,7 @@ public:
 	void detectPolygonCollision(ConvexPolygon& polygon) override;
 
 	sf::Vector2f getVertexPosition(int vertex) override;
+	std::vector<sf::Vector2f> getAllVertices() override;
 
 	void renderEntity(sf::RenderWindow& target) override;
 };
@@ -136,6 +139,7 @@ public:
 	void detectPolygonCollision(ConvexPolygon& polygon) override;
 
 	sf::Vector2f getVertexPosition(int vertex) override;
+	std::vector<sf::Vector2f> getAllVertices() override;
 
 	void renderEntity(sf::RenderWindow& target) override;
 };
@@ -158,6 +162,7 @@ public:
 	void detectPolygonCollision(ConvexPolygon& polygon) override;
 
 	sf::Vector2f getVertexPosition(int vertex) override;
+	std::vector<sf::Vector2f> getAllVertices() override;
 
 	void renderEntity(sf::RenderWindow& target) override;
 };
@@ -180,6 +185,7 @@ public:
 	void setBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vector2f inputPosition);
 
 	sf::Vector2f getVertexPosition(int vertex);
+	std::vector<sf::Vector2f> getAllVertices();
 	void detectPolygonCollision(ConvexPolygon& polygon);
 
 	void renderBarrier(sf::RenderWindow &target);
@@ -265,47 +271,105 @@ public:
 	void sortEntities();
 	int getCellNumber(sf::Vector2f pos);
 
-	static bool checkBoundingBox(Circle& circle, rectBarrier& barrier);
-	static bool checkBoundingBox(ConvexPolygon& polygon, rectBarrier& barrier);
-	static bool checkBoundingBox(Circle& circle, ConvexPolygon& polygon);
-	static bool checkBoundingBox(ConvexPolygon& polygonA, ConvexPolygon& polygonB);
+	static bool checkBoundingBox(
+		Circle& circle,
+		rectBarrier& barrier
+	);
+	static bool checkBoundingBox(
+		ConvexPolygon& polygon,
+		rectBarrier& barrier
+	);
+	static bool checkBoundingBox(
+		Circle& circle,
+		ConvexPolygon& polygon
+	);
+	static bool checkBoundingBox(
+		ConvexPolygon& polygonA,
+		ConvexPolygon& polygonB
+	);
 
-	static void circleCircleDetection(Circle& c1, Circle& c2);
-	static void circleCircleResolution(Circle& c1, Circle& c2, float depth, sf::Vector2f axis);
+	static void circleCircleDetection(
+		Circle& c1,
+		Circle& c2
+	);
+	static void circleCircleResolution(
+		Circle& c1,
+		Circle& c2,
+		float depth,
+		sf::Vector2f axis
+	);
 
-	static void circlePolygonDetection(Circle& c, ConvexPolygon& polygon);
-	static void circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float depth, sf::Vector2f axis, const sf::Vector2f& contactPointOnPolygon);
-	static sf::Vector2f closestPointOnSegmentToCircle(Circle& c, sf::Vector2f& a, sf::Vector2f& b);
+	static void circlePolygonDetection(
+		Circle& c,
+		ConvexPolygon& polygon
+	);
+	static void circlePolygonResolution(
+		Circle& c,
+		ConvexPolygon& polygon,
+		float depth,
+		sf::Vector2f axis,
+		const sf::Vector2f& contactPointOnPolygon
+	);
 
-	static void polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& polygonB);
-	static bool projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vector<sf::Vector2f>& polygonBVertices, float& minDepth, sf::Vector2f& minAxis);
-	static void polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& polygonB, float depth, sf::Vector2f axis);
+	static void polygonPolygonDetection(
+		ConvexPolygon& polygonA,
+		ConvexPolygon& polygonB
+	);
+	static bool projectionSAT(
+		std::vector<sf::Vector2f>& polygonAVertices,
+		std::vector<sf::Vector2f>& polygonBVertices,
+		float& minDepth,
+		sf::Vector2f& minAxis
+	);
+	static void polygonPolygonResolution(
+		ConvexPolygon& polygonA,
+		ConvexPolygon& polygonB,
+		float depth,
+		sf::Vector2f axis
+	);
 
-	static sf::Vector2f closestPointOnLineSegment(const sf::Vector2f& circlePos, const sf::Vector2f& vertex1Pos, const sf::Vector2f& vertex2Pos);
-	static sf::Vector2f findContactPoint(Circle& c, ConvexPolygon& convexPolygon);
+	static sf::Vector2f findContactPoint(
+		Circle& c,
+		ConvexPolygon& convexPolygon
+	);
 
-	static void findContactPoints(ConvexPolygon& polygon, rectBarrier& barrier, sf::Vector2f& contactPoint1, sf::Vector2f& contactPoint2, int& contactCount);
-	static void findContactPoints(ConvexPolygon& polygonA, ConvexPolygon& polygonB, sf::Vector2f& contactPoint1, sf::Vector2f& contactPoint2, int& contactCount);
+	static void findContactPoints(
+		std::vector<sf::Vector2f>& shapeAVertices,
+		std::vector<sf::Vector2f>& shapeBVertices,
+		sf::Vector2f& contactPoint1,
+		sf::Vector2f& contactPoint2,
+		int& contactCount
+	);
 
-	static std::pair<sf::Vector2f, sf::Vector2f> findReferenceEdge(ConvexPolygon& polygonA, ConvexPolygon& polygonB, sf::Vector2f& axis);
-	static std::pair<sf::Vector2f, sf::Vector2f> findReferenceEdge(ConvexPolygon& polygon, rectBarrier& barrier, sf::Vector2f& axis);
+	static void polygonBarrierDetection(
+		ConvexPolygon& polygon,
+		rectBarrier& barrier
+	);
+	static void polygonBarrierResolution(
+		ConvexPolygon& polygon,
+		rectBarrier& barrier,
+		const float& depth,
+		const sf::Vector2f& axis
+	);
 
-	static void polygonBarrierDetection(ConvexPolygon& polygon, rectBarrier& barrier);
-	static void polygonBarrierResolution(ConvexPolygon& polygon, rectBarrier& barrier, const float& depth, const sf::Vector2f& axis);
+	static void circleBarrierDetection(
+		Circle& c,
+		rectBarrier& b
+	);
+	static void circleBarrierResolution(
+		Circle& c,
+		rectBarrier& b,
+		const float& depth,
+		const sf::Vector2f& axis,
+		const sf::Vector2f& contactPointOnBarrier
+	);
 
-	static void circleBarrierDetection(Circle& c, rectBarrier& b);
-	static void circleBarrierResolution(Circle& c, rectBarrier& b, const float& depth, const sf::Vector2f& axis, const sf::Vector2f& contactPointOnBarrier);
-
-	static float dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2);
-	static float crossProduct(const sf::Vector2f& v1, const sf::Vector2f& v2);
-	static sf::Vector2f normalise(const sf::Vector2f& v);
-	static float findDistance(const sf::Vector2f& v1, const sf::Vector2f& v2);
-	static sf::Vector2f perpendicular(const sf::Vector2f& v);
-	static bool nearlyEqual(const float a1, const float a2);
-	static bool nearlyEqual(const sf::Vector2f& v1, const sf::Vector2f& v2);
-
-	static std::vector<sf::Vector2f> getPolygonVertexPositions(ConvexPolygon& polygon);
-	static std::vector<sf::Vector2f> getBarrierVertexPositions(rectBarrier& barrier);
+	static std::vector<sf::Vector2f> getPolygonVertexPositions(
+		ConvexPolygon& polygon
+	);
+	static std::vector<sf::Vector2f> getBarrierVertexPositions(
+		rectBarrier& barrier
+	);
 
 	sf::Color generateVividColour();
 	sf::Color hsvToRgb(int h, float s, float v);
