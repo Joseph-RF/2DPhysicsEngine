@@ -3,6 +3,8 @@
 const float VectorMath::upperLimit = std::numeric_limits<float>::max();
 const float VectorMath::lowerLimit = std::numeric_limits<float>::lowest();
 const float VectorMath::pi = 3.141592;
+const float VectorMath::degToRadFactor = VectorMath::pi / 180.f;
+const float VectorMath::radToDegFactor = 180.f / VectorMath::pi;
 const float VectorMath::root3 = 1.732051;
 
 float VectorMath::dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2)

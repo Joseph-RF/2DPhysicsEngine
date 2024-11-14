@@ -19,9 +19,6 @@ extern int cell_number_x;
 extern int cell_number_y;
 
 extern int counter;
-extern float float_upperLimit;
-extern float float_lowerLimit;
-extern float root3;
 
 extern sf::Vector2f lowerBarrier_position;
 extern sf::Vector2f upperBarrier_position;
@@ -94,8 +91,18 @@ class ConvexPolygon : public Entity
 {
 public:
 	sf::ConvexShape body;
-	virtual sf::Vector2f getVertexPosition(int vertex) = 0;
-	virtual std::vector<sf::Vector2f> getAllVertices() = 0;
+
+	sf::Vector2f getVertexPosition(int vertex);
+	std::vector<sf::Vector2f> getAllVertices();
+
+	void updatePosition();
+
+	void detectBarrierCollision(rectBarrier& b);
+	void detectEntityCollision(Entity& e);
+	void detectCircleCollision(Circle& c);
+	void detectPolygonCollision(ConvexPolygon& polygon);
+
+	void renderEntity(sf::RenderWindow& target);
 };
 
 class Square : public ConvexPolygon
@@ -108,17 +115,6 @@ public:
 	~Square();
 
 	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
-
-	void updatePosition() override;
-	void detectBarrierCollision(rectBarrier& b) override;
-	void detectEntityCollision(Entity& e) override;
-	void detectCircleCollision(Circle& c) override;
-	void detectPolygonCollision(ConvexPolygon& polygon) override;
-
-	sf::Vector2f getVertexPosition(int vertex) override;
-	std::vector<sf::Vector2f> getAllVertices() override;
-
-	void renderEntity(sf::RenderWindow& target) override;
 };
 
 class Triangle : public ConvexPolygon
@@ -131,17 +127,6 @@ public:
 	~Triangle();
 
 	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
-
-	void updatePosition() override;
-	void detectBarrierCollision(rectBarrier& b) override;
-	void detectEntityCollision(Entity& e) override;
-	void detectCircleCollision(Circle& c) override;
-	void detectPolygonCollision(ConvexPolygon& polygon) override;
-
-	sf::Vector2f getVertexPosition(int vertex) override;
-	std::vector<sf::Vector2f> getAllVertices() override;
-
-	void renderEntity(sf::RenderWindow& target) override;
 };
 
 class Hexagon : public ConvexPolygon
@@ -154,17 +139,6 @@ public:
 	~Hexagon();
 
 	void getBoundingBox(float& maxX, float& minX, float& maxY, float& minY) override;
-
-	void updatePosition() override;
-	void detectBarrierCollision(rectBarrier& b) override;
-	void detectEntityCollision(Entity& e) override;
-	void detectCircleCollision(Circle& c) override;
-	void detectPolygonCollision(ConvexPolygon& polygon) override;
-
-	sf::Vector2f getVertexPosition(int vertex) override;
-	std::vector<sf::Vector2f> getAllVertices() override;
-
-	void renderEntity(sf::RenderWindow& target) override;
 };
 
 class rectBarrier

@@ -9,6 +9,8 @@ namespace VectorMath {
 	extern const float upperLimit;
 	extern const float lowerLimit;
 	extern const float pi;
+	extern const float degToRadFactor;
+	extern const float radToDegFactor;
 	extern const float root3;
 
 	float dotProduct(const sf::Vector2f& v1, const sf::Vector2f& v2);

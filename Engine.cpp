@@ -14,9 +14,6 @@ float f_windowWidth = 1200.f;
 float f_windowHeight = 800.f;
 
 int counter = 0;
-float float_upperLimit = std::numeric_limits<float>::max();
-float float_lowerLimit = std::numeric_limits<float>::lowest();
-float root3 = 1.73205;
 
 int cell_size = 40;
 int cell_number_x = windowWidth / cell_size;
@@ -371,10 +368,10 @@ void Engine::circlePolygonResolution(Circle& c, ConvexPolygon& polygon, float de
 	sf::Vector2f r_PA = (polygon.currentPosition + contactPointOnPolygon) - c.currentPosition;
 
 	sf::Vector2f v_A = c.currentPosition - c.oldPosition;
-	v_A -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(r_PA);
+	v_A -= (c.currentAngle - c.oldAngle) * VectorMath::degToRadFactor * VectorMath::perpendicular(r_PA);
 
 	sf::Vector2f v_B = polygon.currentPosition - polygon.oldPosition;
-	v_B -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(contactPointOnPolygon);
+	v_B -= (polygon.currentAngle - polygon.oldAngle) * VectorMath::degToRadFactor * VectorMath::perpendicular(contactPointOnPolygon);
 
 	float contactVelocity_mag = VectorMath::dotProduct(v_B - v_A, axis);
 
@@ -410,7 +407,7 @@ void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& pol
 		return;
 	}
 
-	float minimumDepth = float_upperLimit;
+	float minimumDepth = VectorMath::upperLimit;
 	sf::Vector2f minimumAxis = {-1.f, -1.f};
 	
 	std::vector<sf::Vector2f> polygonAVertices = Engine::getPolygonVertexPositions(polygonA);
@@ -491,11 +488,11 @@ bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vec
 		axis = VectorMath::normalise(axis);
 
 		//Project all the vertices of both polygons onto the axis. Find the max and min for both polygons
-		float max1 = float_lowerLimit;
-		float min1 = float_upperLimit;
+		float max1 = VectorMath::lowerLimit;
+		float min1 = VectorMath::upperLimit;
 
-		float max2 = max1;
-		float min2 = min1;
+		float max2 = VectorMath::lowerLimit;
+		float min2 = VectorMath::upperLimit;
 
 		for (int j = 0; j < polygonAVertexCount; ++j) {
 			sf::Vector2f vertexPosition = polygonAVertices[j];
@@ -584,10 +581,10 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 		r_PB_List[i] = r_PB;
 
 		sf::Vector2f v_A = (polygonA.currentPosition - polygonA.oldPosition);
-		v_A -= (polygonA.currentAngle - polygonA.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(r_PA);
+		v_A -= (polygonA.currentAngle - polygonA.oldAngle) * VectorMath::degToRadFactor * VectorMath::perpendicular(r_PA);
 
 		sf::Vector2f v_B = (polygonB.currentPosition - polygonB.oldPosition);
-		v_B -= (polygonB.currentAngle - polygonB.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(r_PB);
+		v_B -= (polygonB.currentAngle - polygonB.oldAngle) * VectorMath::degToRadFactor * VectorMath::perpendicular(r_PB);
 
 		float contactVelocity_mag = VectorMath::dotProduct(v_B - v_A, axis);
 
@@ -620,10 +617,10 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 		sf::Vector2f r_PB = r_PB_List[i];
 
 		polygonA.oldPosition += impulse * (1.f / polygonA.mass);
-		polygonA.oldAngle += VectorMath::crossProduct(r_PA, impulse) * (1.f / polygonA.momentOfInertia) * (180.f / 3.141592f);
+		polygonA.oldAngle += VectorMath::crossProduct(r_PA, impulse) * (1.f / polygonA.momentOfInertia) * VectorMath::radToDegFactor;
 
 		polygonB.oldPosition -= impulse * (1.f / polygonB.mass);
-		polygonB.oldAngle -= VectorMath::crossProduct(r_PB, impulse) * (1.f / polygonB.momentOfInertia) * (180.f / 3.141592f);
+		polygonB.oldAngle -= VectorMath::crossProduct(r_PB, impulse) * (1.f / polygonB.momentOfInertia) * VectorMath::radToDegFactor;
 	}
 
 	return;
@@ -729,7 +726,7 @@ sf::Vector2f Engine::findContactPoint(
 )
 {
 	sf::Vector2f contactPoint;
-	float distanceToContactPoint = float_upperLimit;
+	float distanceToContactPoint = VectorMath::upperLimit;
 
 	int polygonVertexCount = convexPolygon.body.getPointCount();
 
@@ -757,7 +754,7 @@ void Engine::findContactPoints(
 	contactPoint1 = { -1.f, -1.f };
 	contactPoint2 = { -1.f, -1.f };
 
-	float minDist = float_upperLimit;
+	float minDist = VectorMath::upperLimit;
 	int shapeAVertexCount = shapeAVertices.size();
 	int shapeBVertexCount = shapeBVertices.size();
 
@@ -831,7 +828,7 @@ void Engine::polygonBarrierDetection(
 	}
 
 	//std::cout << "Checking" << std::endl;
-	float minimumDepth = float_upperLimit;
+	float minimumDepth = VectorMath::upperLimit;
 	sf::Vector2f minimumAxis;
 
 	sf::Vector2f barrierPosition = barrier.position;
@@ -892,7 +889,7 @@ void Engine::polygonBarrierResolution(
 
 		sf::Vector2f polygonVelocity = (polygon.currentPosition - polygon.oldPosition);
 
-		polygonVelocity -= (polygon.currentAngle - polygon.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(polygonToContactPoint);
+		polygonVelocity -= (polygon.currentAngle - polygon.oldAngle) * VectorMath::degToRadFactor * VectorMath::perpendicular(polygonToContactPoint);
 
 		float contactVelocityMag = VectorMath::dotProduct(-polygonVelocity, axis);
 
@@ -921,7 +918,7 @@ void Engine::polygonBarrierResolution(
 		sf::Vector2f ra = raList[i];
 
 		polygon.oldPosition += impulse * (1.f / polygon.mass);
-		polygon.oldAngle += VectorMath::crossProduct(ra, impulse) * (1.f / polygon.momentOfInertia) * (180.f / 3.141592f);
+		polygon.oldAngle += VectorMath::crossProduct(ra, impulse) * (1.f / polygon.momentOfInertia) * VectorMath::radToDegFactor;
 	}
 
 	return;
@@ -974,7 +971,7 @@ void Engine::circleBarrierResolution(
 	sf::Vector2f circleToContactPoint = (contactPointOnBarrier + b.position) - c.currentPosition;
 
 	sf::Vector2f circleVelocity = (c.currentPosition - c.oldPosition);
-	circleVelocity -= (c.currentAngle - c.oldAngle) * (3.141592f / 180.f) * VectorMath::perpendicular(circleToContactPoint);
+	circleVelocity -= (c.currentAngle - c.oldAngle) * VectorMath::degToRadFactor * VectorMath::perpendicular(circleToContactPoint);
 
 	float contactVelocityMag = VectorMath::dotProduct(-circleVelocity, axis);
 
@@ -995,7 +992,7 @@ void Engine::circleBarrierResolution(
 	sf::Vector2f impulse = j * axis;
 
 	c.oldPosition += impulse * (1.f / c.mass);
-	c.oldAngle += VectorMath::crossProduct(circleToContactPoint, impulse) * (1.f / c.momentOfInertia) * (180.f / 3.141592f);
+	c.oldAngle += VectorMath::crossProduct(circleToContactPoint, impulse) * (1.f / c.momentOfInertia) * VectorMath::radToDegFactor;
 
 	return;
 }
@@ -1297,6 +1294,62 @@ void Circle::renderEntity(sf::RenderWindow& target)
 	target.draw(body);
 }
 
+sf::Vector2f ConvexPolygon::getVertexPosition(int vertex)
+{
+	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
+	float angle = VectorMath::degToRadFactor * currentAngle;
+
+	float sinAngle = std::sin(angle);
+	float cosAngle = std::cos(angle);
+
+	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
+	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
+
+	return { x + currentPosition.x, y + currentPosition.y };
+}
+
+std::vector<sf::Vector2f> ConvexPolygon::getAllVertices()
+{
+	int vertexCount = this->body.getPointCount();
+	std::vector<sf::Vector2f> vertices(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertices[i] = this->getVertexPosition(i);
+	}
+	return vertices;
+}
+
+void ConvexPolygon::updatePosition()
+{
+	body.setPosition(currentPosition);
+	body.setRotation(currentAngle);
+}
+
+void ConvexPolygon::detectBarrierCollision(rectBarrier& b)
+{
+	Engine::polygonBarrierDetection(*this, b);
+}
+
+void ConvexPolygon::detectEntityCollision(Entity& e)
+{
+	e.detectPolygonCollision(*this);
+}
+
+void ConvexPolygon::detectCircleCollision(Circle& c)
+{
+	Engine::circlePolygonDetection(c, *this);
+}
+
+void ConvexPolygon::detectPolygonCollision(ConvexPolygon& polygon)
+{
+	Engine::polygonPolygonDetection(*this, polygon);
+}
+
+void ConvexPolygon::renderEntity(sf::RenderWindow& target)
+{
+	target.draw(body);
+}
+
 Square::Square()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
@@ -1368,62 +1421,6 @@ void Square::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
 	minY = this->currentPosition.y - diameter * 0.5f;
 }
 
-void Square::updatePosition()
-{
-	body.setPosition(currentPosition);
-	body.setRotation(currentAngle);
-}
-
-void Square::detectBarrierCollision(rectBarrier& b)
-{
-	Engine::polygonBarrierDetection(*this, b);
-}
-
-void Square::detectEntityCollision(Entity& e)
-{
-	e.detectPolygonCollision(*this);
-}
-
-void Square::detectCircleCollision(Circle& c)
-{
-	Engine::circlePolygonDetection(c, *this);
-}
-
-void Square::detectPolygonCollision(ConvexPolygon& polygon)
-{
-	Engine::polygonPolygonDetection(*this, polygon);
-}
-
-sf::Vector2f Square::getVertexPosition(int vertex)
-{
-	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
-	float angle = (3.14159 / 180.f) * currentAngle;
-
-	float sinAngle = std::sin(angle);
-	float cosAngle = std::cos(angle);
-
-	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
-	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
-
-	return { x + currentPosition.x, y + currentPosition.y };
-}
-
-std::vector<sf::Vector2f> Square::getAllVertices()
-{
-	int vertexCount = this->body.getPointCount();
-	std::vector<sf::Vector2f> vertices(vertexCount);
-
-	for (int i = 0; i < vertexCount; ++i) {
-		vertices[i] = this->getVertexPosition(i);
-	}
-	return vertices;
-}
-
-void Square::renderEntity(sf::RenderWindow& target)
-{
-	target.draw(body);
-}
-
 Triangle::Triangle()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
@@ -1434,7 +1431,7 @@ Triangle::Triangle()
 
 	mass = 1.f;
 	size = 10.f;
-	diameter = root3 * 0.5f * size;
+	diameter = VectorMath::root3 * 0.5f * size;
 	momentOfInertia = mass * size * size / 12.f;
 
 	body.setPointCount(3);
@@ -1459,7 +1456,7 @@ Triangle::Triangle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::
 
 	mass = inputMass;
 	size = inputSize;
-	diameter = root3 * 0.5f * size;
+	diameter = VectorMath::root3 * 0.5f * size;
 	momentOfInertia = mass * size * size / 12.f;
 
 	//Points for a triangle are defined starting in top left corner and moving clockwise.
@@ -1493,62 +1490,6 @@ void Triangle::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY
 	minY = this->currentPosition.y - diameter * 0.667f;
 }
 
-void Triangle::updatePosition()
-{
-	body.setPosition(currentPosition);
-	body.setRotation(currentAngle);
-}
-
-void Triangle::detectBarrierCollision(rectBarrier& b)
-{
-	Engine::polygonBarrierDetection(*this, b);
-}
-
-void Triangle::detectEntityCollision(Entity& e)
-{
-	e.detectPolygonCollision(*this);
-}
-
-void Triangle::detectCircleCollision(Circle& c)
-{
-	Engine::circlePolygonDetection(c, *this);
-}
-
-void Triangle::detectPolygonCollision(ConvexPolygon& polygon)
-{
-	Engine::polygonPolygonDetection(*this, polygon);
-}
-
-sf::Vector2f Triangle::getVertexPosition(int vertex)
-{
-	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
-	float angle = (3.14159 / 180.f) * currentAngle;
-
-	float sinAngle = std::sin(angle);
-	float cosAngle = std::cos(angle);
-
-	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
-	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
-
-	return { x + currentPosition.x, y + currentPosition.y };
-}
-
-std::vector<sf::Vector2f> Triangle::getAllVertices()
-{
-	int vertexCount = this->body.getPointCount();
-	std::vector<sf::Vector2f> vertices(vertexCount);
-
-	for (int i = 0; i < vertexCount; ++i) {
-		vertices[i] = this->getVertexPosition(i);
-	}
-	return vertices;
-}
-
-void Triangle::renderEntity(sf::RenderWindow& target)
-{
-	target.draw(body);
-}
-
 Hexagon::Hexagon()
 {
 	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
@@ -1563,11 +1504,11 @@ Hexagon::Hexagon()
 	momentOfInertia = mass * size * size / 8.f;
 
 	body.setPointCount(6);
-	body.setPoint(0, { -(0.5f * size), -(size * root3 * 0.5f) });
-	body.setPoint(1, { (0.5f * size), -(size * root3 * 0.5f) });
+	body.setPoint(0, { -(0.5f * size), -(size * VectorMath::root3 * 0.5f) });
+	body.setPoint(1, { (0.5f * size), -(size * VectorMath::root3 * 0.5f) });
 	body.setPoint(2, { size, 0.f });
-	body.setPoint(3, { (0.5f * size), (size * root3 * 0.5f) });
-	body.setPoint(4, { -(0.5f * size), (size * root3 * 0.5f) });
+	body.setPoint(3, { (0.5f * size), (size * VectorMath::root3 * 0.5f) });
+	body.setPoint(4, { -(0.5f * size), (size * VectorMath::root3 * 0.5f) });
 	body.setPoint(5, { -size, 0.f });
 
 	color = sf::Color::Green;
@@ -1594,11 +1535,11 @@ Hexagon::Hexagon(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Co
 	//Co-ordinates of points are relative to the position of the body
 
 	body.setPointCount(6);
-	body.setPoint(0, { -(0.5f * size), -(size * root3 * 0.5f) });
-	body.setPoint(1, { (0.5f * size), -(size * root3 * 0.5f) });
+	body.setPoint(0, { -(0.5f * size), -(size * VectorMath::root3 * 0.5f) });
+	body.setPoint(1, { (0.5f * size), -(size * VectorMath::root3 * 0.5f) });
 	body.setPoint(2, { size, 0.f });
-	body.setPoint(3, { (0.5f * size), (size * root3 * 0.5f) });
-	body.setPoint(4, { -(0.5f * size), (size * root3 * 0.5f) });
+	body.setPoint(3, { (0.5f * size), (size * VectorMath::root3 * 0.5f) });
+	body.setPoint(4, { -(0.5f * size), (size * VectorMath::root3 * 0.5f) });
 	body.setPoint(5, { -size, 0.f });
 
 	color = inputColor;
@@ -1622,62 +1563,6 @@ void Hexagon::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
 	minX = this->currentPosition.x - size;
 	maxY = this->currentPosition.y + size;
 	minY = this->currentPosition.y - size;
-}
-
-void Hexagon::updatePosition()
-{
-	body.setPosition(currentPosition);
-	body.setRotation(currentAngle);
-}
-
-void Hexagon::detectBarrierCollision(rectBarrier& b)
-{
-	Engine::polygonBarrierDetection(*this, b);
-}
-
-void Hexagon::detectEntityCollision(Entity& e)
-{
-	e.detectPolygonCollision(*this);
-}
-
-void Hexagon::detectCircleCollision(Circle& c)
-{
-	Engine::circlePolygonDetection(c, *this);
-}
-
-void Hexagon::detectPolygonCollision(ConvexPolygon& polygon)
-{
-	Engine::polygonPolygonDetection(*this, polygon);
-}
-
-sf::Vector2f Hexagon::getVertexPosition(int vertex)
-{
-	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
-	float angle = (3.14159 / 180.f) * currentAngle;
-
-	float sinAngle = std::sin(angle);
-	float cosAngle = std::cos(angle);
-
-	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
-	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
-
-	return { x + currentPosition.x, y + currentPosition.y };
-}
-
-std::vector<sf::Vector2f> Hexagon::getAllVertices()
-{
-	int vertexCount = this->body.getPointCount();
-	std::vector<sf::Vector2f> vertices(vertexCount);
-
-	for (int i = 0; i < vertexCount; ++i) {
-		vertices[i] = this->getVertexPosition(i);
-	}
-	return vertices;
-}
-
-void Hexagon::renderEntity(sf::RenderWindow& target)
-{
-	target.draw(body);
 }
 
 rectBarrier::rectBarrier()
@@ -1734,7 +1619,7 @@ sf::Vector2f rectBarrier::getVertexPosition(int vertex)
 {
 	//For rectangle shape, regardless of setOrigin, getPoint for 0th vertex will always give 0,0.
 	sf::Vector2f nonRotatedPosition = body.getPoint(vertex) - size * 0.5f;
-	float angle = (3.14159 / 180.f) * body.getRotation();
+	float angle = VectorMath::degToRadFactor * body.getRotation();
 
 	float x = (nonRotatedPosition.x * std::cos(angle)) - (nonRotatedPosition.y * std::sin(angle));
 	float y = (nonRotatedPosition.x * std::sin(angle)) + (nonRotatedPosition.y * std::cos(angle));
@@ -1786,7 +1671,7 @@ void Spring::update()
 
 	springBody.setSize({ pow(v.x * v.x + v.y * v.y, 0.5f), springWidth });
 
-	springBody.setRotation((180.f / 3.14f) * (atan2(10.f, 0.f) - atan2(v.x ,v.y)));
+	springBody.setRotation(VectorMath::radToDegFactor * (atan2(10.f, 0.f) - atan2(v.x ,v.y)));
 
 	centreOfMass = (entity1->mass * entity1->currentPosition + entity2->mass * entity2->currentPosition) / (entity1->mass + entity2->mass);
 }
