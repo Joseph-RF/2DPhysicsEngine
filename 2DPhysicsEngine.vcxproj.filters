@@ -24,12 +24,18 @@
     <ClCompile Include="VectorMath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Shapes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="VectorMath.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Shapes.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

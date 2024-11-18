@@ -2,8 +2,6 @@
 * Note that very small acceleration doesn't work due to floating point precision.
 * Bug? Feature? It looks like circles collide with squares, the circle loses
 * all momentum perpendicular to the edge of the circle it collided with.
-* Consider updating once every single frame. Should be no problem since barriers
-* cannot be moved by other objects.
 */
 
 #include "Engine.h"
@@ -13,8 +11,6 @@ int windowHeight = 800;
 float f_windowWidth = 1200.f;
 float f_windowHeight = 800.f;
 
-int counter = 0;
-
 int cell_size = 40;
 int cell_number_x = windowWidth / cell_size;
 int cell_number_y = windowHeight / cell_size;
@@ -23,8 +19,6 @@ extern sf::Vector2f lowerBarrier_position = { f_windowWidth * 0.5f , f_windowHei
 extern sf::Vector2f upperBarrier_position = { f_windowWidth * 0.5f , 10.f };
 extern sf::Vector2f rightBarrier_position = { f_windowWidth - 10.f , f_windowHeight * 0.5f};
 extern sf::Vector2f leftBarrier_position = { 10.f, f_windowHeight * 0.5f };
-
-std::vector<sf::RectangleShape> Engine::objectsToDraw;
 
 Engine::Engine()
 {
@@ -121,7 +115,7 @@ void Engine::addTriangle()
 
 void Engine::addHexagon()
 {
-	Entities.emplace_back(new Hexagon(sf::Vector2f(rand() % 1000 + 100, 100.f), 1.f, 20.f, generateVividColour()));
+	Entities.emplace_back(new Hexagon(sf::Vector2f(rand() % 1000 + 100, 100.f), 1.f, 15.f, generateVividColour()));
 	entitiesSpawned++;
 }
 
@@ -347,7 +341,6 @@ void Engine::circlePolygonDetection(Circle& c, ConvexPolygon& polygon)
 			if (VectorMath::dotProduct(polygon.currentPosition - c.currentPosition, axis) < 0.f) {
 				axis = {-axis.x, -axis.y};
 			}
-			//std::cout << "Distance being passed: " << tempDistance << std::endl;
 			Engine::circlePolygonResolution(c, polygon, (c.size - tempDistance), axis, tempVector - polygon.currentPosition);
 		}
 	}
@@ -424,46 +417,6 @@ void Engine::polygonPolygonDetection(ConvexPolygon& polygonA, ConvexPolygon& pol
 	if (VectorMath::dotProduct(polygonB.currentPosition - polygonA.currentPosition, minimumAxis) < 0.f) {
 		minimumAxis = -minimumAxis;
 	}
-	//std::cout << "Collision axis: " << minimumAxis.x << " " << minimumAxis.y << std::endl;
-	//std::cout << "Collision depth: " << minimumDepth << std::endl;
-
-	//From this, conclude that the vertices are found where they should be. All are 23.09 away from the centre.
-	/*
-	if (minimumDepth > 1.0f && polygonAVertices.size() < 4 && polygonBVertices.size() < 4) {
-		std::cout << "Somthing happened" << std::endl;
-		std::cout << "Distance between the two shapes: " << Engine::findDistance(polygonA.currentPosition, polygonB.currentPosition) << std::endl;
-		std::cout << "Distance between polygon A and its vertices: " << Engine::findDistance(polygonA.currentPosition, polygonAVertices[0]) << std::endl;
-		std::cout << Engine::findDistance(polygonA.currentPosition, polygonAVertices[1]) << std::endl;
-		std::cout << Engine::findDistance(polygonA.currentPosition, polygonAVertices[2]) << std::endl;
-		std::cout << "Distance between polygon B and its vertices: " << Engine::findDistance(polygonB.currentPosition, polygonBVertices[0]) << std::endl;
-		std::cout << Engine::findDistance(polygonB.currentPosition, polygonBVertices[1]) << std::endl;
-		std::cout << Engine::findDistance(polygonB.currentPosition, polygonBVertices[2]) << std::endl;
-	}
-	*/
-
-	/*
-
-	sf::RectangleShape temp({ 5.f, 5.f });
-	temp.setPosition(polygonA.currentPosition);
-	temp.setFillColor(sf::Color::Red);
-	Engine::objectsToDraw.push_back(temp);
-
-	sf::RectangleShape temp2({ 5.f, 5.f });
-	temp2.setPosition(polygonB.currentPosition);
-	temp2.setFillColor(sf::Color::Red);
-	Engine::objectsToDraw.push_back(temp2);
-
-	for (int i = 0; i < polygonAVertices.size(); ++i) {
-		temp.setPosition(polygonAVertices[i]);
-		Engine::objectsToDraw.push_back(temp);
-	}
-
-	for (int i = 0; i < polygonBVertices.size(); ++i) {
-		temp.setPosition(polygonBVertices[i]);
-		Engine::objectsToDraw.push_back(temp);
-	}
-
-	*/
 
 	polygonPolygonResolution(polygonA, polygonB, minimumDepth, minimumAxis);
 }
@@ -519,7 +472,6 @@ bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vec
 
 		if (max1 < min2 || max2 < min1) {
 			//Not colliding.
-			//std::cout << "not colliding" << std::endl;
 			return true;
 		}
 		//Projections are overlapping
@@ -535,15 +487,12 @@ bool Engine::projectionSAT(std::vector<sf::Vector2f>& polygonAVertices, std::vec
 			minAxis = axis;
 		}
 	}
-	//std::cout << "Colliding" << std::endl;
 	return false;
 }
 
 void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& polygonB, float depth, sf::Vector2f axis)
 {
 	sf::Vector2f overlapCorrection = 0.5f * axis * depth;
-
-	//std::cout << "Depth of collision: " << depth << std::endl;
 
 	polygonA.currentPosition -= overlapCorrection;
 	polygonA.oldPosition -= overlapCorrection;
@@ -558,15 +507,6 @@ void Engine::polygonPolygonResolution(ConvexPolygon& polygonA, ConvexPolygon& po
 	std::vector<sf::Vector2f> polygonBVertices = polygonB.getAllVertices();
 
 	Engine::findContactPoints(polygonAVertices, polygonBVertices, contactPoints[0], contactPoints[1], contactCount);
-
-	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
-	
-	sf::RectangleShape temp({ 5.f, 5.f });
-	temp.setPosition(contactPoints[0]);
-	temp.setFillColor(sf::Color::Red);
-	Engine::objectsToDraw.push_back(temp);
-	
-	//std::cout << "Contact point registered." << std::endl;
 
 	std::vector<sf::Vector2f> r_PA_List(2);
 	std::vector<sf::Vector2f> r_PB_List(2);
@@ -827,7 +767,6 @@ void Engine::polygonBarrierDetection(
 		return;
 	}
 
-	//std::cout << "Checking" << std::endl;
 	float minimumDepth = VectorMath::upperLimit;
 	sf::Vector2f minimumAxis;
 
@@ -868,15 +807,6 @@ void Engine::polygonBarrierResolution(
 	std::vector<sf::Vector2f> barrierVertices = Engine::getBarrierVertexPositions(barrier);
 
 	Engine::findContactPoints(polygonVertices, barrierVertices, contactPoints[0], contactPoints[1], contactCount);
-
-	//TEMPORARY STUFF ADD TO SUPPORT DRAWING CONTACT POINTS.
-	/*
-	sf::RectangleShape temp({ 5.f, 5.f });
-	temp.setPosition(contactPoints[0]);
-	temp.setFillColor(sf::Color::Red);
-	Engine::objectsToDraw.push_back(temp);
-	//std::cout << "Contact point registered." << std::endl;
-	*/
 
 	std::vector<sf::Vector2f> raList(2);
 	std::vector<sf::Vector2f> impulseList(2);
@@ -949,7 +879,6 @@ void Engine::circleBarrierDetection(
 			if (VectorMath::dotProduct(b.position - c.currentPosition, axis) < 0.f) {
 				axis = { -axis.x, -axis.y };
 			}
-			//std::cout << "Distance being passed: " << tempDistance << std::endl;
 			Engine::circleBarrierResolution(c, b, (c.size - tempDistance), axis, tempVector - b.position);
 		}
 	}
@@ -1006,7 +935,6 @@ std::vector<sf::Vector2f> Engine::getPolygonVertexPositions(
 
 	for (int i = 0; i < vertexCount; ++i) {
 		vertexPositions[i] = polygon.getVertexPosition(i);
-		//std::cout << polygon.getVertexPosition(i).x << " " << polygon.getVertexPosition(i).y << std::endl;
 	}
 	return vertexPositions;
 }
@@ -1173,25 +1101,11 @@ void Engine::render()
 		barrier.renderBarrier(*window);
 	}
 
-	for (sf::RectangleShape object : Engine::objectsToDraw) {
-		//std::cout << object.getPosition().x << std::endl;
-		window->draw(object);
-	}
-
-	/*
-	if (counter > 120) {
-		objectsToDraw.clear();
-		counter = 0;
-	}
-	counter++;
-	*/
-
 	window->draw(fpstext);
 	window->draw(entitiesSpawnedText);
 	window->draw(shapeButtonsText);
 
 	window->display();
-	objectsToDraw.clear();
 }
 
 const bool Engine::isWindowOpen() const
@@ -1201,499 +1115,4 @@ const bool Engine::isWindowOpen() const
 	} else {
 		return false;
 	}
-}
-
-Circle::Circle()
-{
-	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = 0.f;
-
-	mass = 1.f;
-	size = 5.f;
-	diameter = size * 2;
-	momentOfInertia = mass * size * size * 0.5f;
-	resCoeff = 0.8f;
-
-	body.setRadius(size);
-	color = sf::Color::White;
-	body.setFillColor(color);
-
-	body.setOrigin(size, size);
-
-	force = { 0.f, 0.f };
-}
-
-Circle::Circle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
-{
-	currentPosition = inputPos;
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = 0.f;
-
-	mass = inputMass;
-	size = inputSize;
-	diameter = size * 2;
-	momentOfInertia = mass * size * size * 0.5f;
-	resCoeff = 0.8f;
-
-	body.setRadius(size);
-	color = inputColor;
-	body.setFillColor(color);
-
-	body.setOrigin(size, size);
-	body.setRadius(size);
-
-	force = { 0.f, 0.f };
-}
-
-Circle::~Circle()
-{
-
-}
-
-void Circle::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
-{
-	maxX = this->currentPosition.x + this->size;
-	minX = this->currentPosition.x - this->size;
-	maxY = this->currentPosition.y + this->size;
-	minY = this->currentPosition.y - this->size;
-}
-
-void Circle::updatePosition()
-{
-	body.setPosition(currentPosition);
-	body.setRotation(currentAngle);
-}
-
-void Circle::detectBarrierCollision(rectBarrier& b)
-{
-	Engine::circleBarrierDetection(*this, b);
-}
-
-void Circle::detectEntityCollision(Entity& e)
-{
-	e.detectCircleCollision(*this);
-}
-
-void Circle::detectCircleCollision(Circle& c)
-{
-	Engine::circleCircleDetection(*this, c);
-}
-
-void Circle::detectPolygonCollision(ConvexPolygon& polygon)
-{
-	Engine::circlePolygonDetection(*this, polygon);
-}
-
-void Circle::renderEntity(sf::RenderWindow& target)
-{
-	target.draw(body);
-}
-
-sf::Vector2f ConvexPolygon::getVertexPosition(int vertex)
-{
-	sf::Vector2f nonRotatedPosition = body.getPoint(vertex);
-	float angle = VectorMath::degToRadFactor * currentAngle;
-
-	float sinAngle = std::sin(angle);
-	float cosAngle = std::cos(angle);
-
-	float x = (nonRotatedPosition.x * cosAngle) - (nonRotatedPosition.y * sinAngle);
-	float y = (nonRotatedPosition.x * sinAngle) + (nonRotatedPosition.y * cosAngle);
-
-	return { x + currentPosition.x, y + currentPosition.y };
-}
-
-std::vector<sf::Vector2f> ConvexPolygon::getAllVertices()
-{
-	int vertexCount = this->body.getPointCount();
-	std::vector<sf::Vector2f> vertices(vertexCount);
-
-	for (int i = 0; i < vertexCount; ++i) {
-		vertices[i] = this->getVertexPosition(i);
-	}
-	return vertices;
-}
-
-void ConvexPolygon::updatePosition()
-{
-	body.setPosition(currentPosition);
-	body.setRotation(currentAngle);
-}
-
-void ConvexPolygon::detectBarrierCollision(rectBarrier& b)
-{
-	Engine::polygonBarrierDetection(*this, b);
-}
-
-void ConvexPolygon::detectEntityCollision(Entity& e)
-{
-	e.detectPolygonCollision(*this);
-}
-
-void ConvexPolygon::detectCircleCollision(Circle& c)
-{
-	Engine::circlePolygonDetection(c, *this);
-}
-
-void ConvexPolygon::detectPolygonCollision(ConvexPolygon& polygon)
-{
-	Engine::polygonPolygonDetection(*this, polygon);
-}
-
-void ConvexPolygon::renderEntity(sf::RenderWindow& target)
-{
-	target.draw(body);
-}
-
-Square::Square()
-{
-	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
-	oldPosition = currentPosition;
-	
-	currentAngle = 0.f;
-	oldAngle = 0.f;
-
-	mass = 1.f;
-	size = 10.f;
-	diameter = pow(size * size + size * size, 0.5f);
-	momentOfInertia = mass * size * size / 6.f;
-
-	body.setPointCount(4);
-	body.setPoint(0, { -(size / 2.f), -(size / 2.f) });
-	body.setPoint(1, { (size / 2.f), -(size / 2.f) });
-	body.setPoint(2, { (size / 2.f), (size / 2.f) });
-	body.setPoint(3, { -(size / 2.f), (size / 2.f) });
-
-	color = sf::Color::Green;
-	body.setFillColor(color);
-	resCoeff = 0.8f;
-
-	force = { 0.f, 0.f };
-}
-
-Square::Square(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
-{
-	currentPosition = inputPos;
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = -0.4f;
-
-	mass = inputMass;
-	size = inputSize;
-	diameter = pow(size * size + size * size, 0.5f);
-	momentOfInertia = mass * size * size / 6.f;
-
-	//Points for a square are defined starting in top left corner and moving clockwise.
-	//Co-ordinates of points are relative to the position of the body
-
-	body.setPointCount(4);
-	body.setPoint(0, { -(size / 2.f), -(size / 2.f)});
-	body.setPoint(1, { (size / 2.f), -(size / 2.f) });
-	body.setPoint(2, { (size / 2.f), (size / 2.f) });
-	body.setPoint(3, { -(size / 2.f), (size / 2.f) });
-
-	color = inputColor;
-	body.setFillColor(color);
-	resCoeff = 0.8f;
-
-	force = { 0.f, 0.f };
-	/*
-	body.setOutlineThickness(1);
-	body.setOutlineColor(sf::Color(250, 150, 100));
-	*/
-}
-
-Square::~Square()
-{
-}
-
-void Square::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
-{
-	maxX = this->currentPosition.x + diameter * 0.5f;
-	minX = this->currentPosition.x - diameter * 0.5f;
-	maxY = this->currentPosition.y + diameter * 0.5f;
-	minY = this->currentPosition.y - diameter * 0.5f;
-}
-
-Triangle::Triangle()
-{
-	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = 0.f;
-
-	mass = 1.f;
-	size = 10.f;
-	diameter = VectorMath::root3 * 0.5f * size;
-	momentOfInertia = mass * size * size / 12.f;
-
-	body.setPointCount(3);
-	body.setPoint(0, { 0.f, -(diameter * 2.f / 3.f) });
-	body.setPoint(1, { (size / 2.f), (diameter / 3.f) });
-	body.setPoint(2, { -(size / 2.f), (diameter / 3.f) });
-
-	color = sf::Color::Green;
-	body.setFillColor(color);
-	resCoeff = 0.8f;
-
-	force = { 0.f, 0.f };
-}
-
-Triangle::Triangle(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
-{
-	currentPosition = inputPos;
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = -0.4f;
-
-	mass = inputMass;
-	size = inputSize;
-	diameter = VectorMath::root3 * 0.5f * size;
-	momentOfInertia = mass * size * size / 12.f;
-
-	//Points for a triangle are defined starting in top left corner and moving clockwise.
-	//Co-ordinates of points are relative to the position of the body
-
-	body.setPointCount(3);
-	body.setPoint(0, { 0.f, -(diameter * 2.f / 3.f) });
-	body.setPoint(1, { (size / 2.f), (diameter / 3.f) });
-	body.setPoint(2, { -(size / 2.f), (diameter / 3.f) });
-
-	color = inputColor;
-	body.setFillColor(color);
-	resCoeff = 0.8f;
-
-	force = { 0.f, 0.f };
-	/*
-	body.setOutlineThickness(1);
-	body.setOutlineColor(sf::Color(250, 150, 100));
-	*/
-}
-
-Triangle::~Triangle()
-{
-}
-
-void Triangle::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
-{
-	maxX = this->currentPosition.x + diameter * 0.667f;
-	minX = this->currentPosition.x - diameter * 0.667f;
-	maxY = this->currentPosition.y + diameter * 0.667f;
-	minY = this->currentPosition.y - diameter * 0.667f;
-}
-
-Hexagon::Hexagon()
-{
-	currentPosition = sf::Vector2f(f_windowWidth / 2, f_windowHeight / 2);
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = 0.f;
-
-	mass = 1.f;
-	size = 10.f;
-	diameter = 2.f * size;
-	momentOfInertia = mass * size * size / 8.f;
-
-	body.setPointCount(6);
-	body.setPoint(0, { -(0.5f * size), -(size * VectorMath::root3 * 0.5f) });
-	body.setPoint(1, { (0.5f * size), -(size * VectorMath::root3 * 0.5f) });
-	body.setPoint(2, { size, 0.f });
-	body.setPoint(3, { (0.5f * size), (size * VectorMath::root3 * 0.5f) });
-	body.setPoint(4, { -(0.5f * size), (size * VectorMath::root3 * 0.5f) });
-	body.setPoint(5, { -size, 0.f });
-
-	color = sf::Color::Green;
-	body.setFillColor(color);
-	resCoeff = 0.8f;
-
-	force = { 0.f, 0.f };
-}
-
-Hexagon::Hexagon(sf::Vector2f inputPos, float inputMass, float inputSize, sf::Color inputColor)
-{
-	currentPosition = inputPos;
-	oldPosition = currentPosition;
-
-	currentAngle = 0.f;
-	oldAngle = -0.4f;
-
-	mass = inputMass;
-	size = inputSize;
-	diameter = 2.f * size;
-	momentOfInertia = mass * size * size / 8.f;
-
-	//Points for a hexagon are defined starting in top left corner and moving clockwise.
-	//Co-ordinates of points are relative to the position of the body
-
-	body.setPointCount(6);
-	body.setPoint(0, { -(0.5f * size), -(size * VectorMath::root3 * 0.5f) });
-	body.setPoint(1, { (0.5f * size), -(size * VectorMath::root3 * 0.5f) });
-	body.setPoint(2, { size, 0.f });
-	body.setPoint(3, { (0.5f * size), (size * VectorMath::root3 * 0.5f) });
-	body.setPoint(4, { -(0.5f * size), (size * VectorMath::root3 * 0.5f) });
-	body.setPoint(5, { -size, 0.f });
-
-	color = inputColor;
-	body.setFillColor(color);
-	resCoeff = 0.8f;
-
-	force = { 0.f, 0.f };
-	/*
-	body.setOutlineThickness(1);
-	body.setOutlineColor(sf::Color(250, 150, 100));
-	*/
-}
-
-Hexagon::~Hexagon()
-{
-}
-
-void Hexagon::getBoundingBox(float& maxX, float& minX, float& maxY, float& minY)
-{
-	maxX = this->currentPosition.x + size;
-	minX = this->currentPosition.x - size;
-	maxY = this->currentPosition.y + size;
-	minY = this->currentPosition.y - size;
-}
-
-rectBarrier::rectBarrier()
-{
-	color = sf::Color::White;
-	body.setFillColor(color);
-	size = sf::Vector2f(10.f, 10.f);
-	body.setSize(size);
-
-	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
-
-	position = sf::Vector2f(0.f, 0.f);
-	body.setPosition(position);
-
-	vertexPositions = Engine::getBarrierVertexPositions(*this);
-}
-
-rectBarrier::rectBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vector2f inputPosition)
-{
-	color = inputColor;
-	body.setFillColor(color);
-	size = inputSize;
-	body.setSize(size);
-
-	position = inputPosition;
-	body.setPosition(position);
-
-	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
-
-	vertexPositions = Engine::getBarrierVertexPositions(*this);
-}
-
-rectBarrier::~rectBarrier() 
-{
-	
-}
-
-void rectBarrier::setBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vector2f inputPosition)
-{
-	color = inputColor;
-	body.setFillColor(color);
-	size = inputSize;
-	body.setSize(size);
-
-	position = inputPosition;
-	body.setPosition(position);
-
-	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
-
-	vertexPositions = Engine::getBarrierVertexPositions(*this);
-}
-
-sf::Vector2f rectBarrier::getVertexPosition(int vertex)
-{
-	//For rectangle shape, regardless of setOrigin, getPoint for 0th vertex will always give 0,0.
-	sf::Vector2f nonRotatedPosition = body.getPoint(vertex) - size * 0.5f;
-	float angle = VectorMath::degToRadFactor * body.getRotation();
-
-	float x = (nonRotatedPosition.x * std::cos(angle)) - (nonRotatedPosition.y * std::sin(angle));
-	float y = (nonRotatedPosition.x * std::sin(angle)) + (nonRotatedPosition.y * std::cos(angle));
-
-	return { x + position.x, y + position.y};
-}
-
-void rectBarrier::detectPolygonCollision(ConvexPolygon& polygon)
-{
-	Engine::polygonBarrierDetection(polygon, *this);
-}
-
-void rectBarrier::renderBarrier(sf::RenderWindow& target)
-{
-	//body.rotate(0.4f);
-	target.draw(body);
-}
-
-Spring::Spring(Entity* inputEntity1, Entity* inputEntity2, float inputSpringConstant, float inputDampingConstant, float inputRestLength)
-{
-	entity1 = inputEntity1;
-	entity2 = inputEntity2;
-	springWidth = 10.f;
-	springConstant = inputSpringConstant;
-	dampingConstant = inputDampingConstant;
-	restLength = inputRestLength;
-
-	springBody.setFillColor(sf::Color::White);
-	springBody.setSize({ abs(entity1->currentPosition.x - entity2->currentPosition.x), springWidth });
-	springBody.setPosition({ entity1->currentPosition.x, entity1->currentPosition.y });
-	springBody.setOrigin({ 0, springWidth / 2});
-	position = entity1->currentPosition;
-
-	e1RestDistance = restLength * entity2->mass / (entity1->mass + entity2->mass);
-	e2RestDistance = restLength - e1RestDistance;
-}
-
-Spring::~Spring()
-{
-
-}
-
-void Spring::update()
-{
-	const sf::Vector2f v = entity2->currentPosition - entity1->currentPosition;
-
-	springBody.setPosition({ entity1->currentPosition.x, entity1->currentPosition.y});
-	position = entity1->currentPosition;
-
-	springBody.setSize({ pow(v.x * v.x + v.y * v.y, 0.5f), springWidth });
-
-	springBody.setRotation(VectorMath::radToDegFactor * (atan2(10.f, 0.f) - atan2(v.x ,v.y)));
-
-	centreOfMass = (entity1->mass * entity1->currentPosition + entity2->mass * entity2->currentPosition) / (entity1->mass + entity2->mass);
-}
-
-void Spring::applyForces(float dt)
-{
-	//Will first find where both entities should be a.k.a their rest positions
-	const sf::Vector2f v = entity2->currentPosition - entity1->currentPosition;
-
-	//Find the velocity of each entity from the positions
-	const sf::Vector2f entity1velocity = (entity1->currentPosition - entity1->oldPosition) / dt;
-	const sf::Vector2f entity2velocity = (entity2->currentPosition - entity2->oldPosition) / dt;
-
-	const sf::Vector2f e1RestPos = centreOfMass - (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e1RestDistance);
-	const sf::Vector2f e2RestPos = centreOfMass + (v / pow(v.x * v.x + v.y * v.y, 0.5f) * e2RestDistance);
-
-	//Apply the restoring force to the entities
-	entity1->force += -springConstant * (entity1->currentPosition - e1RestPos) - dampingConstant * (entity1velocity - entity2velocity);
-	entity2->force += -springConstant * (entity2->currentPosition - e2RestPos) - dampingConstant * (entity2velocity - entity1velocity);
-}
-
-void Spring::render(sf::RenderWindow& target)
-{
-	target.draw(springBody);
 }
