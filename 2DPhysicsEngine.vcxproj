@@ -136,10 +136,12 @@
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Shapes.cpp" />
+    <ClCompile Include="Collisions.cpp" />
     <ClCompile Include="VectorMath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine.h" />
+    <ClInclude Include="Collisions.h" />
     <ClInclude Include="Shapes.h" />
     <ClInclude Include="VectorMath.h" />
   </ItemGroup>

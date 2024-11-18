@@ -68,7 +68,7 @@ void Circle::updatePosition()
 
 void Circle::detectBarrierCollision(rectBarrier& b)
 {
-	Engine::circleBarrierDetection(*this, b);
+	Collisions::circleBarrierDetection(*this, b);
 }
 
 void Circle::detectEntityCollision(Entity& e)
@@ -78,12 +78,12 @@ void Circle::detectEntityCollision(Entity& e)
 
 void Circle::detectCircleCollision(Circle& c)
 {
-	Engine::circleCircleDetection(*this, c);
+	Collisions::circleCircleDetection(*this, c);
 }
 
 void Circle::detectPolygonCollision(ConvexPolygon& polygon)
 {
-	Engine::circlePolygonDetection(*this, polygon);
+	Collisions::circlePolygonDetection(*this, polygon);
 }
 
 void Circle::renderEntity(sf::RenderWindow& target)
@@ -124,7 +124,7 @@ void ConvexPolygon::updatePosition()
 
 void ConvexPolygon::detectBarrierCollision(rectBarrier& b)
 {
-	Engine::polygonBarrierDetection(*this, b);
+	Collisions::polygonBarrierDetection(*this, b);
 }
 
 void ConvexPolygon::detectEntityCollision(Entity& e)
@@ -134,12 +134,12 @@ void ConvexPolygon::detectEntityCollision(Entity& e)
 
 void ConvexPolygon::detectCircleCollision(Circle& c)
 {
-	Engine::circlePolygonDetection(c, *this);
+	Collisions::circlePolygonDetection(c, *this);
 }
 
 void ConvexPolygon::detectPolygonCollision(ConvexPolygon& polygon)
 {
-	Engine::polygonPolygonDetection(*this, polygon);
+	Collisions::polygonPolygonDetection(*this, polygon);
 }
 
 void ConvexPolygon::renderEntity(sf::RenderWindow& target)
@@ -374,7 +374,7 @@ rectBarrier::rectBarrier()
 	position = sf::Vector2f(0.f, 0.f);
 	body.setPosition(position);
 
-	vertexPositions = Engine::getBarrierVertexPositions(*this);
+	vertexPositions = this->getAllVertices();
 }
 
 rectBarrier::rectBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vector2f inputPosition)
@@ -389,7 +389,7 @@ rectBarrier::rectBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::Vecto
 
 	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
 
-	vertexPositions = Engine::getBarrierVertexPositions(*this);
+	vertexPositions = this->getAllVertices();
 }
 
 rectBarrier::~rectBarrier()
@@ -409,7 +409,7 @@ void rectBarrier::setBarrier(sf::Color inputColor, sf::Vector2f inputSize, sf::V
 
 	body.setOrigin({ size.x * 0.5f, size.y * 0.5f });
 
-	vertexPositions = Engine::getBarrierVertexPositions(*this);
+	vertexPositions = this->getAllVertices();
 }
 
 sf::Vector2f rectBarrier::getVertexPosition(int vertex)
@@ -424,9 +424,20 @@ sf::Vector2f rectBarrier::getVertexPosition(int vertex)
 	return { x + position.x, y + position.y };
 }
 
+std::vector<sf::Vector2f> rectBarrier::getAllVertices()
+{
+	int vertexCount = this->body.getPointCount();
+	std::vector<sf::Vector2f> vertices(vertexCount);
+
+	for (int i = 0; i < vertexCount; ++i) {
+		vertices[i] = this->getVertexPosition(i);
+	}
+	return vertices;
+}
+
 void rectBarrier::detectPolygonCollision(ConvexPolygon& polygon)
 {
-	Engine::polygonBarrierDetection(polygon, *this);
+	Collisions::polygonBarrierDetection(polygon, *this);
 }
 
 void rectBarrier::renderBarrier(sf::RenderWindow& target)

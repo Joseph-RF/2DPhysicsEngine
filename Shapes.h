@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 
 #include "VectorMath.h"
+#include "Collisions.h"
 #include "Engine.h"
 
 class Engine;
