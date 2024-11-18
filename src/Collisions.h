@@ -1,11 +1,11 @@
 #pragma once
 
-#include <vector>
-
 #include <SFML/System.hpp>
 
 #include "Shapes.h"
 #include "Engine.h"
+
+#include <vector>
 
 class Circle;
 class ConvexPolygon;

@@ -133,17 +133,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Engine.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Shapes.cpp" />
-    <ClCompile Include="Collisions.cpp" />
-    <ClCompile Include="VectorMath.cpp" />
+    <ClCompile Include="src\Collisions.cpp" />
+    <ClCompile Include="src\Engine.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Shapes.cpp" />
+    <ClCompile Include="src\VectorMath.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Engine.h" />
-    <ClInclude Include="Collisions.h" />
-    <ClInclude Include="Shapes.h" />
-    <ClInclude Include="VectorMath.h" />
+    <ClInclude Include="src\Collisions.h" />
+    <ClInclude Include="src\Engine.h" />
+    <ClInclude Include="src\Shapes.h" />
+    <ClInclude Include="src\VectorMath.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
