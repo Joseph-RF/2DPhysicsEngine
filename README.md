@@ -6,7 +6,7 @@
   <h3 align="center">2D Physics Engine</h3>
 
   <p align="center">
-    A two dimensional physics engine featuring... 
+    A two dimensional physics engine featuring accurate collisions between rigid bodies 
     <br />
     <br />
   </p>
@@ -34,7 +34,11 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-Hello, This is a simple 2D physics engine using No-Velocity Verlet Integration I created for fun one summer with an external library called SFML in order to easily handle visuals as well as input from the keyboard during the programme's runtime. The code allows the user to simulate rigid shapes colliding with each other as well as pairs of circles connected by springs.
+Hello, This is a simple 2D physics engine using No-Velocity Verlet Integration
+I created for fun one summer with an external library called SFML in order
+to easily handle visuals as well as input from the keyboard during the
+programme's runtime. The code allows the user to simulate rigid shapes
+colliding with each other as well as pairs of circles connected by springs.
 
 It was inspired by the work done by [johnBuffer](https://github.com/johnBuffer/VerletSFML) here on GitHub.
 
